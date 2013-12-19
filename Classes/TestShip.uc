@@ -2,7 +2,7 @@ class TestShip extends Ship;
 
 simulated event PostBeginPlay(){
 	Super.PostBeginPlay();
-	
+	//WHOAH
 	SpawnAllShipParts();
 	SMesh.SetActorCollision(false, false, false);
 }
