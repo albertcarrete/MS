@@ -163,10 +163,10 @@ simulated function SetCustomCollisionRBChannels(bool bRagdollMode)
 	}
 }
 
-function AddDefaultInventory()
+/*function AddDefaultInventory()
 {
 
-}
+}*/
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
@@ -317,23 +317,78 @@ function ChangeBuildingActor(ShipPart newBuildingActor){
 	}
 }
 
-exec function CreateFriend(){
-	local Pawn tempPawn;
-	local SControllerBot tempBot;
+function S_Pawn CreatePlayer(bool bIncludeWeapon, optional Vector loc){
+	local S_Pawn tempPawn;
 	local Vector X, Y, Z;
 
 	GetAxes(Rotation, X, Y, Z);
 
-	tempPawn = Spawn(class'SPlayer_Pawn', , , Location + X*100);
+	if(loc != vect(0,0,0))
+		tempPawn = Spawn(class'SPlayer_Pawn', , , loc);
+	else
+		tempPawn = Spawn(class'SPlayer_Pawn', , , Location + X*700);
+
 	if(tempPawn != none){
 		tempPawn.Controller = Spawn(class'SControllerBot');
 		if ( tempPawn.Controller != None )
 		{
 			tempPawn.Controller.Possess( tempPawn, false );
-			tempBot = SControllerBot(tempPawn.Controller);
-			tempBot.SetTarget(self, Location);
+		}
+		if(bIncludeWeapon)
+			tempPawn.AddWeapon();
+	}
+
+	return tempPawn;
+}
+
+exec function CreateFriend(bool bIncludeWeapon, optional Vector loc){
+	local S_Pawn tempPawn;
+	local SControllerBot tempBot;
+
+	tempPawn = CreatePlayer(bIncludeWeapon, loc);
+
+	if(tempPawn != none){
+		tempBot = SControllerBot(tempPawn.Controller);
+
+		if(tempBot != none){
+			//tempBot.SetTarget(self, Location);
 		}
 	}
+}
+
+exec function CreateEnemy(bool bIncludeWeapon,  optional Vector loc){
+	local S_Pawn tempPawn;
+	local SControllerBot tempBot;
+
+	tempPawn = CreatePlayer(bIncludeWeapon, loc);
+
+	if(tempPawn != none){
+		tempBot = SControllerBot(tempPawn.Controller);
+
+		if(tempBot != none){
+			//tempBot.SetTarget(self, Location);
+		}
+		
+		tempBot.SetEnemy(true);
+		//tempPawn.StartFire(0);
+	}
+}
+
+exec function CreateFireFight(){
+	local int i;
+	
+	
+
+	for(i = 0; i < 20; i++){
+		if(Rand(2) < 1)
+			CreateFriend(true, GetRandomLocation(2000));
+		else
+			CreateEnemy(true, GetRandomLocation(2000));
+	}
+}
+
+exec function AddWeapon(){
+	CreateInventory(class'SWeap_LinkGun');
 }
 
 exec function CreateHelper(){
@@ -592,7 +647,7 @@ function AddVel(int Axis, float Amount, float DeltaTime){
 function bool CheckIfInShip(){
 	local Vector WaistLoc, HitLoc, HitNormal, TraceEndTop, TraceEndBot, X, Y, Z;
 	local Rotator WaistRot;
-	local Actor TracedActor1, TracedActor2;
+	local ShipPart TracedActor1, TracedActor2;
 	local float Orientation;
 	local bool bTopHit, bBotHit;
 
@@ -605,18 +660,30 @@ function bool CheckIfInShip(){
 	TraceEndTop.Z += 500;
 	TraceEndBot.Z -= 500;
 	//DrawDebugLine(TraceEndTop, TraceEndBot, 0, 1, 0);
-	TracedActor1 = Trace(HitLoc, HitNormal, TraceEndTop, WaistLoc);
-	if(TracedActor1 != none && TracedActor1.IsA('ShipPart') && ShipPart(TracedActor1).ShipOwner != none){
+	
+	foreach TraceActors( class'ShipPart', TracedActor1, HitLoc, HitNormal, TraceEndTop, WaistLoc){
+		if(TracedActor1 != none)
+			break;
+	}
+
+	//TracedActor1 = Trace(HitLoc, HitNormal, TraceEndTop, WaistLoc);
+	if(TracedActor1 != none && TracedActor1.IsA('ShipPart') && TracedActor1.ShipOwner != none){
 		bTopHit = true;
 		//ClientMessage("HitTop!!!");
 	}
-	TracedActor2 = Trace(HitLoc, HitNormal, TraceEndBot, WaistLoc);
-	if(TracedActor2 != none && TracedActor2.IsA('ShipPart') && ShipPart(TracedActor2).ShipOwner != none){
+	
+	foreach TraceActors( class'ShipPart', TracedActor2, HitLoc, HitNormal, TraceEndBot, WaistLoc){
+		if(TracedActor2 != none)
+			break;
+	}
+	
+	//TracedActor2 = Trace(HitLoc, HitNormal, TraceEndBot, WaistLoc);
+	if(TracedActor2 != none && TracedActor2.IsA('ShipPart') && TracedActor2.ShipOwner != none){
 		bBotHit = true;
 		//ClientMessage("HitBottom!!!");
 	}
-	if(bTopHit && bBotHit && ShipPart(TracedActor1).ShipOwner == ShipPart(TracedActor2).ShipOwner){//Make sure that both traces hit and that both actors that got hit belong to the same ship
-		SetShipActor(ShipPart(TracedActor1).ShipOwner);
+	if(bTopHit && bBotHit && TracedActor1.ShipOwner == TracedActor2.ShipOwner){//Make sure that both traces hit and that both actors that got hit belong to the same ship
+		SetShipActor(TracedActor1.ShipOwner);
 		
 		//bHardAttach = true;
 		//self.SetBase(TracedActor1);//Attach pawn to the ship so that when the ship moves we move with it
@@ -627,7 +694,8 @@ function bool CheckIfInShip(){
 		if(Orientation > 0){
 			//ClientMessage("Oriented to Gravity!");
 			if(GetDistance(HitLoc) < 60 && !bPlayingMelee && !bPressingJump)// && !OldbLanded)
-				SetPhysics(PHYS_Walking);
+				if(Physics != PHYS_RigidBody)
+					SetPhysics(PHYS_Walking);
 		}
 		if(Base != ShipActor){
 			//ClientMessage("Found New Base!");
@@ -731,6 +799,107 @@ function LimitVel(){
 	//ClientMessage(magnitude);
 }
 
+simulated State Dying
+{
+	event BeginState(Name PreviousStateName){
+		//SetTimer(3, false, 'SleepRigidBody');
+		CylinderComponent.SetActorCollision(false,false,false);
+
+		SetJetpackActive(false);
+	}
+
+	simulated event Tick(FLOAT DeltaSeconds)
+	{
+		local Vector tempVel;
+
+		if(CheckIfInShip() && ShipActor.bGravityOn && ShipActor.bPowerOn){
+			//Can't use AddVel because I need Gravity Axis
+		
+			`log("RAGDOLL GRAVITY!!!!");
+
+			if(!bExperiencingGravity){
+				Mesh.WakeRigidBody();
+				//SetTimer(3, false, 'SleepRigidBody');
+			}
+			
+			tempVel = Velocity;
+			tempVel += GravityDirection * 500 * DeltaSeconds;
+			//tempVel.Z -= 10;
+			
+			tempVel = GravityDirection * 500 * DeltaSeconds;
+
+			Mesh.AddImpulse(tempVel);
+
+			//Mesh.AddForce(tempVel);
+			
+			//Velocity = tempVel;
+
+			bExperiencingGravity = true;
+		
+			ViewPitchMin = default.ViewPitchMin;
+			ViewPitchMax = default.ViewPitchMax;
+
+			//WalkableFloorZ = default.WalkableFloorZ;
+		}else{
+			bExperiencingGravity = false;
+		}
+	}
+
+	/*event BeginState(Name PreviousState){
+		GotoState('Auto');
+	}*/
+
+}
+
+simulated function SleepRigidBody(){
+	Mesh.PutRigidBodyToSleep();
+}
+
+event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
+{
+
+	Super.TakeDamage(Damage, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+}
+
+simulated function Death(){
+	
+
+	SController(Controller).GotoState('PawnDead');
+
+	// if we had some other rigid body thing going on, cancel it
+	if (Physics == PHYS_RigidBody)
+	{
+		//@note: Falling instead of None so Velocity/Acceleration don't get cleared
+		setPhysics(PHYS_Falling);
+	}
+
+	// Ensure we are always updating kinematic
+	Mesh.MinDistFactorForKinematicUpdate = 0.0;
+
+	SetPawnRBChannels(TRUE);
+	Mesh.ForceSkelUpdate();
+	
+	PreRagdollCollisionComponent = CollisionComponent;
+	CollisionComponent = Mesh;
+	// Turn collision on for skelmeshcomp and off for cylinder
+	CylinderComponent.SetActorCollision(false, false);
+	Mesh.SetActorCollision(true, true);
+	Mesh.SetTraceBlocking(true, true);
+
+	Mesh.PhysicsAssetInstance.SetAllBodiesFixed(FALSE);
+
+	SetPhysics(PHYS_RigidBody);
+	Mesh.PhysicsWeight = 1.0;
+
+	Mesh.SetRBLinearVelocity(Velocity, false);
+
+	Mesh.SetTranslation(vect(0,0,1) * BaseTranslationOffset);
+	// we'll use the rigid body collision to check for falling damage
+	Mesh.ScriptRigidBodyCollisionThreshold = MaxFallSpeed;
+	Mesh.SetNotifyRigidBodyCollision(true);
+	Mesh.WakeRigidBody();
+}
+
 simulated event Tick(float DeltaTime)
 {
 	local Vector tempVel, tempLoc;
@@ -739,6 +908,8 @@ simulated event Tick(float DeltaTime)
 	local float TurnDifference;
 
 	Super.Tick(DeltaTime);
+
+	`log("THE STATE!!!!!" @ GetStateName());
 
 	//GravityDirection = vect(0, 0, -1);
 
@@ -1303,7 +1474,7 @@ exec function ToggleFixedCam(){
 
 simulated function FaceRotation(rotator NewRotation, float DeltaTime)
 {
-if(bDrivingShip || bEditingCharacter){
+if(bDrivingShip || bEditingCharacter || bPlayingMelee){
 		
 	}else if(bFixedCam){
 		Super.FaceRotation(NewRotation, DeltaTime);
@@ -1434,6 +1605,10 @@ function EncroachedBy(Actor Other);
 
 defaultproperties
 {
+	bPushesRigidBodies=true
+
+	//SightRadius=
+	PeripheralVision=170
 
 	bIsBot = false
 
@@ -1446,7 +1621,7 @@ defaultproperties
 	GravityDirection = (X=0, Y=0, Z=-1)//default gravity going down (X=0,Y=0,Z=-1)
 	//bCanWalk=false
 	WalkingPhysics=PHYS_Walking
-	LandMovementState=PlayerWalking
+	LandMovementState=NewPlayerWalking
 	//WalkingPhysics = PHYS_Falling
 
 	CamHeight = 40
@@ -1516,7 +1691,7 @@ defaultproperties
 	Begin Object Name=CollisionCylinder
 		CollisionRadius=+0015.000000
 		CollisionHeight=+0050.000000
-
+		BlockZeroExtent=false
 	End Object
 	CylinderComponent=CollisionCylinder
 
@@ -1526,7 +1701,10 @@ defaultproperties
 		AnimSets(0)=AnimSet'RoboHelper1.AnimSet.RoboHelper1_AnimSet'
 		PhysicsAsset=PhysicsAsset'RoboHelper1.Physics.RoboHelper1_SKMesh_Physics'
 		LightEnvironment = none
-
+		BlockZeroExtent=true
+		CollideActors=true
+		BlockRigidBody=true
+		
 	End Object
 
 	Begin Object Class=LightFunction Name=MyLightFunction

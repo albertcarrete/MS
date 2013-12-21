@@ -127,7 +127,7 @@ simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int M
 
 function AddDefaultInventory( pawn PlayerPawn )
 {
-
+	//PlayerPawn.CreateInventory(class'SWeap_LinkGun');
 }
 
 DefaultProperties

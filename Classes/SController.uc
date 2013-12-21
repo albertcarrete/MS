@@ -3,6 +3,130 @@ class SController extends UTPlayerController;
 /** used to hold the value of the previous X value in UpdateRotation()*/
 var Vector OldX;
 
+/** if true, then this AI will behave like an enemy to the player*/
+var bool bIsEnemy;
+
+state PawnDead{
+
+}
+
+state NewPlayerWalking{
+		event NotifyPhysicsVolumeChange( PhysicsVolume NewVolume )
+	{
+		if ( NewVolume.bWaterVolume && Pawn.bCollideWorld )
+		{
+			GotoState(Pawn.WaterMovementState);
+		}
+	}
+
+	function ProcessMove(float DeltaTime, vector NewAccel, eDoubleClickDir DoubleClickMove, rotator DeltaRot)
+	{
+		if( Pawn == None )
+		{
+			return;
+		}
+
+		if (Role == ROLE_Authority)
+		{
+			// Update ViewPitch for remote clients
+			Pawn.SetRemoteViewPitch( Rotation.Pitch );
+		}
+
+		Pawn.Acceleration = NewAccel;
+
+		CheckJumpOrDuck();
+	}
+
+	function PlayerMove( float DeltaTime )
+	{
+		local vector			X,Y,Z, NewAccel;
+		local eDoubleClickDir	DoubleClickMove;
+		local rotator			OldRotation;
+		local bool				bSaveJump;
+
+		if( Pawn == None )
+		{
+			GotoState('Dead');
+		}
+		else
+		{
+
+			GetAxes(Rotation,X,Y,Z);
+
+			// Update acceleration.
+			NewAccel = PlayerInput.aForward*X + PlayerInput.aStrafe*Y;
+			NewAccel.Z	= 0;
+			NewAccel = Pawn.AccelRate * Normal(NewAccel);
+
+			if (IsLocalPlayerController() && !SPlayer_Pawn(Pawn).bPlayingMelee)
+			{
+				AdjustPlayerWalkingMoveAccel(NewAccel);
+			}
+
+			DoubleClickMove = PlayerInput.CheckForDoubleClickMove( DeltaTime/WorldInfo.TimeDilation );
+
+			// Update rotation.
+			OldRotation = Rotation;
+			UpdateRotation( DeltaTime );
+			bDoubleJump = false;
+
+			if( bPressedJump && Pawn.CannotJumpNow() )
+			{
+				bSaveJump = true;
+				bPressedJump = false;
+			}
+			else
+			{
+				bSaveJump = false;
+			}
+
+			if( Role < ROLE_Authority ) // then save this move and replicate it
+			{
+				ReplicateMove(DeltaTime, NewAccel, DoubleClickMove, OldRotation - Rotation);
+			}
+			else
+			{
+				ProcessMove(DeltaTime, NewAccel, DoubleClickMove, OldRotation - Rotation);
+			}
+			bPressedJump = bSaveJump;
+		}
+	}
+
+	event BeginState(Name PreviousStateName)
+	{
+		if(S_Pawn(Pawn).bDrivingShip)
+			GoToState('PlayerDriving');
+
+		DoubleClickDir = DCLICK_None;
+		bPressedJump = false;
+		GroundPitch = 0;
+		if ( Pawn != None )
+		{
+			Pawn.ShouldCrouch(false);
+			if (Pawn.Physics != PHYS_Falling && Pawn.Physics != PHYS_RigidBody && S_Pawn(Pawn).bExperiencingGravity) // FIXME HACK!!!
+				Pawn.SetPhysics(Pawn.WalkingPhysics);
+		}
+	}
+
+	event EndState(Name NextStateName)
+	{
+		/*
+		GroundPitch = 0;
+		if ( Pawn != None )
+		{
+			Pawn.SetRemoteViewPitch( 0 );
+			if ( bDuck == 0 )
+			{
+				Pawn.ShouldCrouch(false);
+			}
+		}*/
+	}
+
+Begin:
+	//if(!S_Pawn(Pawn).bExperiencingGravity)
+		//Pawn.SetPhysics(PHYS_Falling);
+}
+
 state PlayerWalking{
 	ignores SeePlayer, HearNoise, Bump;
 
@@ -270,7 +394,7 @@ function UpdateRotation( float DeltaTime )
    ViewRotation = Rotation;
    if (Pawn!=none)
    {
-      Pawn.SetDesiredRotation(ViewRotation);
+   		Pawn.SetDesiredRotation(ViewRotation);
    }
 
 	GetAxes(Rotation, X, Y, Z);
@@ -316,6 +440,7 @@ function UpdateRotation( float DeltaTime )
     	}else{
 			ViewRotation =  OrthoRotation(X,Y,Z);
 			SetRotation(ViewRotation);
+			
 			Pawn.SetRotation(ViewRotation);
 			//Pawn.FaceRotation(ViewRotation, DeltaTime);
     	}
@@ -357,4 +482,7 @@ function ProcessViewRotation( float DeltaTime, out Rotator out_ViewRotation, Rot
 
 defaultproperties
 {
+	bIsPlayer = true
+
+	bIsEnemy = false
 }

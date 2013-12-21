@@ -114,10 +114,11 @@ simulated function PostBeginPlay(){
 	RandomizeColors();
 }
 
-function AddDefaultInventory()
+/*function AddDefaultInventory()
 {
 
-}
+}*/
+
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
@@ -547,6 +548,9 @@ simulated function StartFire(byte FireModeNum){
 	local Vector X, Y, Z, tempVel;
 	local Rotator tempRot;
 
+	if(Health <= 0)
+		return;
+
 	// firing cancels feign death
 	if (bFeigningDeath)
 		FeignDeath();
@@ -565,7 +569,7 @@ simulated function StartFire(byte FireModeNum){
 				return;
 			}
 
-			if( Weapon != None )
+			if( Weapon != None && bAiming)
 			{
 				Weapon.StartFire(FireModeNum);
 			}else if(!bPlayingMelee || bAllowNextMelee){
@@ -574,11 +578,11 @@ simulated function StartFire(byte FireModeNum){
 					SetTimer(0.3, false, 'AllowNextMelee');
 					
 					if(currentmeleeNum == 0){
-						FullAnimSlot.PlayCustomMirrorAnim('H_MeleeBladeAttack_2', 4, , 0.1, 0.2);
+						FullAnimSlot.PlayCustomMirrorAnim('H_MeleeBladeAttack_2', 4, false , 0.1, 0.2);
 						currentmeleeNum++;
 					}
 					else{
-						FullAnimSlot.PlayCustomMirrorAnim('H_MeleeBladeAttack_1', 4, , 0.25, 0.2);
+						FullAnimSlot.PlayCustomMirrorAnim('H_MeleeBladeAttack_1', 4, false, 0.25, 0.2);
 						currentmeleeNum = 0;
 					}
 
@@ -928,9 +932,7 @@ simulated event BecomeViewTarget( PlayerController PC )
 
 simulated event Tick(float DeltaTime)
 {
-	local Vector tempVel, ChestPieceLoc, ChestX, ChestY, ChestZ;
-	local Rotator ChestPieceRot;
-
+	local Vector WeaponTraceStart, WeaponTraceEnd;
 	Super.Tick(DeltaTime);
 
 	if(Physics == PHYS_Flying || Physics == PHYS_Falling)
@@ -939,26 +941,38 @@ simulated event Tick(float DeltaTime)
 		AimNode.SetActiveProfileByName('Default');
 	}
 
-	/*if(!bDrivingShip){
-		if(bJetPackActive){
-			Mesh.GetSocketWorldLocationAndRotation('ChestPiece_Socket', ChestPieceLoc, ChestPieceRot);
-			GetAxes(ChestPieceRot, ChestX, ChestY, ChestZ);
-			tempVel = ChestZ*5 + Velocity;
-			Velocity = tempVel;
-			if(!bJetPackOn)
-				SetJetpackActive(true);
-		}
-		else{
-			if(Physics == PHYS_Flying && CheckMoving()){
-				if(!bJetPackOn)
-					SetJetpackActive(true);
-			}
-			else{
-				if(bJetPackOn)
-					SetJetpackActive(false);
-			}
-		}
-	}*/
+	if(bPlayingMelee){
+		SkeletalMeshComponent(MeleeBladeActor.ArmorMesh).GetSocketWorldLocationAndRotation('bladeStart', WeaponTraceStart);
+		SkeletalMeshComponent(MeleeBladeActor.ArmorMesh).GetSocketWorldLocationAndRotation('bladeEnd', WeaponTraceEnd);
+
+		DrawDebugLine(WeaponTraceStart, WeaponTraceEnd, 0,255,0,false);
+		TraceMelee(WeaponTraceStart, WeaponTraceEnd);
+	}
+}
+
+function TraceMelee(Vector TraceStart, Vector TraceEnd){
+	local Actor HitActor;
+	local Vector HitLocation, HitNormal;
+	
+	HitActor = Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true);
+	if(Pawn(HitActor) != none && Pawn(HitActor).Health > 0)
+		SPlayer_Pawn(HitActor).HandleMeleeHit(200, self.Controller, HitLocation, HitNormal, class'DmgType_Crushed');
+}
+
+function HandleMeleeHit(int Damage, Controller EventInstigator, Vector HitLocation, Vector Momentum, class<DamageType> DamageType){
+	local Vector tempVel;
+	
+	TakeDamage(Damage, EventInstigator, HitLocation, Momentum, DamageType);
+	PlaySound(SoundCue'ArA_Armor.Sounds.BladeImpact_Cue');
+
+	tempVel = Momentum * 300;
+						
+	if(bExperiencingGravity && Physics == PHYS_Walking){
+			SetPhysics(PHYS_Falling);
+			tempVel+= GravityDirection * -100;
+	}
+						
+	Velocity += tempVel;   
 }
 
 state WorldView{
@@ -1101,6 +1115,9 @@ simulated function FaceRotation(rotator NewRotation, float DeltaTime)
 
 exec function StartAim()
 {
+	if(Health <= 0)
+		return;
+
 	if(Weapon != none){
 		bAiming = true;
 		PlaySlotAnims(TorsoAnimSlot, SWeapon(Weapon).AimAnim, 3, true,,0.2,0.2,true);
@@ -1175,6 +1192,7 @@ simulated function EndSeeEnemyReaction()
 
 defaultproperties
 {
+
 	GlossColor=(R=1,G=1,B=1,A=1)
 	FirstColor=(R=0.2,G=0.2,B=0.2,A=1)
 	SecondColor=(R=0.5,G=0.5,B=0.5,A=1)
@@ -1247,7 +1265,7 @@ defaultproperties
 		AnimTreeTemplate=AnimTree'Human1.AnimTree.Human1_AnimTree'
 		AnimSets(0)=AnimSet'Human1.AnimSet.Humanoid1_AnimSet'
 		AnimSets(1)=AnimSet'Human1.AnimSet.Humanoid_AnimSet'
-		PhysicsAsset=PhysicsAsset'MaleBase.Physics.MaleBase_Physics'
+		PhysicsAsset=PhysicsAsset'Human1.Mesh.Human_Base1_Physics'
 	End Object
 
 	Begin Object Class=AudioComponent Name=JetPackAudioComponent
