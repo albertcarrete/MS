@@ -1,6 +1,6 @@
 class Armor extends Actor;
 
-var StaticMeshComponent ArmorMesh;
+var MeshComponent ArmorMesh;
 
 var MaterialInstance ArmorInst;
 
@@ -45,6 +45,8 @@ function ChangeColor(int MatNum, float red, float green, float blue, float alpha
 DefaultProperties
 {
 	bShadowParented = true
+
+	bHardAttach=true
 
 	bNoDelete = false
 
