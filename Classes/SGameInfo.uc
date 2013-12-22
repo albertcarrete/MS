@@ -132,7 +132,7 @@ function AddDefaultInventory( pawn PlayerPawn )
 
 DefaultProperties
 {
-	DefaultPawnClass=class'SPlayer_Pawn'
+	DefaultPawnClass=class'SPlayerWithShip_Pawn'
 	PlayerControllerClass=class'SController'
 	HUDType=class'ProjectS.MSHudWrapper'	
 	//HUDType=class'SHud'

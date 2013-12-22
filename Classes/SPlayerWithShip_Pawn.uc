@@ -9,8 +9,8 @@ simulated function PostBeginPlay(){
 	tempLoc = ShipActor.Location + ShipActor.defaultSpawnPoint;
 	SetLocation(tempLoc);
 	SetRotation(ShipActor.Rotation);
-	ToggleDriveShip();
-	SetTimer(0.01, false, 'PressWorldView');
+	//ToggleDriveShip();
+	//SetTimer(0.01, false, 'PressWorldView');
 
 }
 
