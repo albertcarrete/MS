@@ -33,6 +33,10 @@ event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocatio
 	EventInstigator.Pawn.ClientMessage("Took Damage, Health: " @ Health);
 }
 
+function Interact(S_Pawn Instigator){
+
+}
+
 function PowerOnOrOff(bool bOff)
 {
 	if(!bOff && LastHealth <= 0)
@@ -70,8 +74,8 @@ function bool CheckDestroyed()
 
 DefaultProperties
 {
-	Health=100
-	LastHealth=100
+	Health=1000
+	LastHealth=1000
 
 	//PowerOffCue=SoundCue'SpaceSounds.Engine.EnginePowerOff_Cue'
 	Begin Object Name=ShipPartStaticMeshComponent

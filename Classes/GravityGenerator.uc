@@ -1,4 +1,4 @@
-class GravityGenerator extends ActiveShipPart;
+class GravityGenerator extends DestructibleActiveShipPart;
 
 function TurnOn(){
 	Super.TurnOn();

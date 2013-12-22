@@ -208,6 +208,7 @@ state PlayerWalking{
 			}
 			bPressedJump = bSaveJump;
 		}
+
 	}
 
 	event BeginState(Name PreviousStateName)

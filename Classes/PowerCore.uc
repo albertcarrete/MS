@@ -1,4 +1,4 @@
-class PowerCore extends ActiveShipPart;
+class PowerCore extends DestructibleActiveShipPart;
 
 function TurnOn(){
 	Super.TurnOn();

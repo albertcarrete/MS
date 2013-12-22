@@ -119,7 +119,7 @@ event PlayerTick( float DeltaTime ){
 					bIsShooting = true;
 					S_Pawn(Pawn).StartAim();
 					Pawn.StartFire(0);
-				}else if(DistanceFromTarget < 150 && bAllowMelee){//Use melee
+				}else if(DistanceFromTarget < 200 && bAllowMelee){//Use melee
 					bAllowMelee = false;
 					randDelay = Rand(2) + 1;
 					randDelay /= 10;

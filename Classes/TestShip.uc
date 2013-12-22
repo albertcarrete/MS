@@ -213,6 +213,9 @@ function SpawnAllShipParts(){
 	SpawnShipPart(class'ShipWeapon', -188, 400,136, 16384, , -16384);
 
 
+	SpawnShipPart(class'Seat', 172, -284, 0, -16384);
+
+
 
 	SpawnShipLight(class'ShipLight', 200, -300, 125);
 	SpawnShipLight(class'ShipLight', -230, -300, 125);

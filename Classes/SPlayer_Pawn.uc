@@ -957,6 +957,8 @@ function TraceMelee(Vector TraceStart, Vector TraceEnd){
 	HitActor = Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true);
 	if(Pawn(HitActor) != none && Pawn(HitActor).Health > 0)
 		SPlayer_Pawn(HitActor).HandleMeleeHit(200, self.Controller, HitLocation, HitNormal, class'DmgType_Crushed');
+	if(DestructibleActiveShipPart(HitActor) != none && DestructibleActiveShipPart(HitActor).Health > 0)
+		DestructibleActiveShipPart(HitActor).TakeDamage(200, self.Controller, HitLocation, HitNormal, class'DmgType_Crushed');
 }
 
 function HandleMeleeHit(int Damage, Controller EventInstigator, Vector HitLocation, Vector Momentum, class<DamageType> DamageType){

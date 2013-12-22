@@ -1,5 +1,11 @@
 class S_Pawn extends UTPawn;
 
+/** The Actor we are currently ready to interact with. Determined by tracing the players view*/
+var Actor CurrentActiveActor, CurrentSeatActor;
+
+/** The location the player has to stay in when sitting(location of the chair)*/
+var Vector SeatLocation;
+
 var Vector GravityDirection;
 
 var Rotator savedRot;//A saved Rotation... used to keep facing in a direction when editing character
@@ -339,6 +345,19 @@ function S_Pawn CreatePlayer(bool bIncludeWeapon, optional Vector loc){
 	}
 
 	return tempPawn;
+}
+
+exec function PressUse(){
+	
+	if(bDrivingShip && CurrentSeatActor!= none){
+		Seat(CurrentSeatActor).Interact(self);
+		return;
+	}
+
+	if(CurrentActiveActor == none)
+		return;
+
+	ActiveShipPart(CurrentActiveActor).Interact(self);
 }
 
 exec function CreateFriend(bool bIncludeWeapon, optional Vector loc){
@@ -952,34 +971,37 @@ simulated event Tick(float DeltaTime)
 
 	GetAxes(Rotation, pawnX, pawnY, pawnZ);
 
-	if(bDrivingShip && ShipActor != none && ShipActor.bPowerOn){
+	if(bDrivingShip && ShipActor != none){
 		if(bJetPackOn)
 			SetJetpackActive(false);
 		
 		tempVel.X = 0; tempVel.Y = 0; tempVel.Z = 0;
 		Velocity = tempVel;
-		if(bPressingForwards){
-			tempVel = ShipActor.Location + (pawnX * 1500 * DeltaTime);
-			ShipActor.SetLocation(tempVel);
-			tempLoc = Location + (pawnX * 1500  * DeltaTime);
-		}else if(bPressingBackwards){
-			tempVel = ShipActor.Location - (pawnX * 1500 * DeltaTime);
-			ShipActor.SetLocation(tempVel);
-		}
-			//ShipActor.Velocity = ShipActor.Velocity + pawnX *15;
-			//SetLocation(tempLoc);
+		
+		if(ShipActor.bPowerOn){
+			if(bPressingForwards){
+				tempVel = ShipActor.Location + (pawnX * 1500 * DeltaTime);
+				ShipActor.SetLocation(tempVel);
+				tempLoc = Location + (pawnX * 1500  * DeltaTime);
+			}else if(bPressingBackwards){
+				tempVel = ShipActor.Location - (pawnX * 1500 * DeltaTime);
+				ShipActor.SetLocation(tempVel);
+			}
+				//ShipActor.Velocity = ShipActor.Velocity + pawnX *15;
+				//SetLocation(tempLoc);
 	
-		if(bPressingShipTurnRight){
-			tempRot = ShipActor.Rotation;
-			TurnDifference = 5000;
-			tempRot.Yaw += TurnDifference * DeltaTime;
-			ShipActor.SetRotation(tempRot);
-		}
-		else if(bPressingShipTurnLeft){
-			tempRot = ShipActor.Rotation;
-			TurnDifference = -5000;
-			tempRot.Yaw += TurnDifference * DeltaTime;
-			ShipActor.SetRotation(tempRot);
+			if(bPressingShipTurnRight){
+				tempRot = ShipActor.Rotation;
+				TurnDifference = 5000;
+				tempRot.Yaw += TurnDifference * DeltaTime;
+				ShipActor.SetRotation(tempRot);
+			}
+			else if(bPressingShipTurnLeft){
+				tempRot = ShipActor.Rotation;
+				TurnDifference = -5000;
+				tempRot.Yaw += TurnDifference * DeltaTime;
+				ShipActor.SetRotation(tempRot);
+			}
 		}
 		//tempRot = Rotation;
 		//tempRot.Yaw += TurnDifference;
@@ -987,6 +1009,7 @@ simulated event Tick(float DeltaTime)
 		tempRot = ShipActor.Rotation;
 		//tempRot.Yaw += 16384;
 		SetRotation(tempRot);
+		SetLocation(CurrentSeatActor.Location + vect(0,0,1) * 53);
 	}
 
 	if(!bExperiencingGravity && !bDrivingShip){
@@ -1003,13 +1026,14 @@ simulated event Tick(float DeltaTime)
 
 		//SetRotation(Controller.Rotation);
 	}else{
-		
+		//This code makes sure that when you experience gravity, that your body gets oriented the way it's supposed to
 		tempRot = Controller.Rotation;
 		tempRot.Roll = 0;
 		Controller.SetRotation(tempRot);
 		tempRot2 = Rotation;
 		tempRot2.Roll = 0;
 		tempRot2.Pitch = 0;
+
 		SetRotation(tempRot2);
 	}
 
@@ -1023,6 +1047,8 @@ simulated event Tick(float DeltaTime)
 	}*/
 
 	theLocation = Location;
+
+	TracePlayerInteract();
 
 	LimitVel();
 }
@@ -1060,8 +1086,9 @@ simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out
 	End = (Location+vecCamHeight)-(Vector(Controller.Rotation) * CamDistance);  //cam follow behind player controller
 	out_CamLoc = End;
 
+	
 	//trace to check if cam running into wall/floor
-	if(Trace(HitLoc,HitNorm,End,Start,false,vect(12,12,12))!=none)
+	if(!bDrivingShip && Trace(HitLoc,HitNorm,End,Start,false,vect(12,12,12))!=none)
 	{
 		out_CamLoc = HitLoc;// + vecCamHeight;
 	}
@@ -1200,6 +1227,10 @@ simulated function AllowJump()
 
 function SetJetpackActive(bool bActive){
 	bJetPackOn=bActive;
+}
+
+function SetSeatActor(Seat newSeat){
+	CurrentSeatActor = newSeat;
 }
 
 function SetDriveShip(bool bDriving){
@@ -1474,10 +1505,17 @@ exec function ToggleFixedCam(){
 
 simulated function FaceRotation(rotator NewRotation, float DeltaTime)
 {
-if(bDrivingShip || bEditingCharacter || bPlayingMelee){
+if(bDrivingShip || bEditingCharacter){
 		
 	}else if(bFixedCam){
-		Super.FaceRotation(NewRotation, DeltaTime);
+		if(bPressingForwards){
+			if(bStrafingRight && !bStrafingLeft)
+				NewRotation.Yaw += 8000;
+			else if(!bStrafingRight && bStrafingLeft)
+				NewRotation.Yaw -= 8000;
+		}
+
+		Super.FaceRotation(RInterpTo(Rotation, NewRotation, DeltaTime, 90000, true), DeltaTime);
 		return;
 	}else if(bPressingForwards || bAiming || bPlayingMelee){
 		NewRotation = rotator((Location + Normal(Velocity))-Location);
@@ -1498,7 +1536,7 @@ simulated function CalcAcceleration()
 
 	if(CheckMoving())
 	{
-		if(bSprinting && !bPressingBackwards && !bStrafingRight && !bStrafingLeft)
+		if(bSprinting && !bPressingBackwards)// && !bStrafingRight && !bStrafingLeft)
 		{
 			speedMax = default.GroundSpeed * SprintSpeedMultiplier;
 		}
@@ -1538,6 +1576,24 @@ simulated function CalcAcceleration()
 		if(SprintSpeedBlendVar != none)
 			SprintSpeedBLendVar.SetBlendTarget(TheAcceleration/speedMax, 0.1);
 	}*/
+}
+
+function TracePlayerInteract(){
+	local Actor HitActor;
+	local Vector ViewPointLoc, HitLocation, HitNormal, X, Y, Z;
+	local Rotator ViewPointRot;
+
+	Controller.GetPlayerViewPoint(ViewPointLoc, ViewPointRot);
+	GetAxes(ViewPointRot, X, Y ,Z);
+
+	HitActor = Trace(HitLocation, HitNormal, ViewPointLoc + X * 300, ViewPointLoc, true);
+	DrawDebugLine(ViewPointLoc, ViewPointLoc + X * 300, 0, 1, 0);
+
+	if(HitActor.IsA('ActiveShipPart') && GetDistance(HitLocation) < 150){
+		CurrentActiveActor = HitActor;
+	}else{
+		CurrentActiveActor = none;
+	}
 }
 
 exec function StartAim()
@@ -1703,6 +1759,7 @@ defaultproperties
 		LightEnvironment = none
 		BlockZeroExtent=true
 		CollideActors=true
+		//BlockActors=false
 		BlockRigidBody=true
 		
 	End Object
