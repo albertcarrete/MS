@@ -6,6 +6,14 @@ var Vector OldX;
 /** if true, then this AI will behave like an enemy to the player*/
 var bool bIsEnemy;
 
+/** used so pawn can skip certain code that is for player controlled pawns only*/
+var bool bIsBot;
+
+simulated event PostBeginPlay(){
+	Super.PostBeginPlay();
+	//PlaySound(SoundCue'AmbienceSounds.Ambience.SpaceAmbienceTest_cue');
+}
+
 state PawnDead{
 
 }
@@ -481,8 +489,13 @@ function ProcessViewRotation( float DeltaTime, out Rotator out_ViewRotation, Rot
 	}
 }
 
+function SetEnemy(bool bEnemy){
+	bIsEnemy = bEnemy;
+}
+
 defaultproperties
 {
+	bIsBot = false
 	bIsPlayer = true
 
 	bIsEnemy = false

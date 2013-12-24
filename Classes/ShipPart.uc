@@ -55,9 +55,15 @@ simulated function StopGlow()
 
 function StartFire();
 
+event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser){
+
+	if(DamageType == class'SDmgType_ShipDamage')
+		ShipOwner.TakeDamage(DamageAmount, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+}
 
 DefaultProperties
 {
+	
 	bIsWeapon = false
 	PartOwner = none
 

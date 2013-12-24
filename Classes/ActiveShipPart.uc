@@ -12,7 +12,7 @@ var AnimNodeBlend PowerCheckVar;
 
 var SoundCue PowerOffCue;
 
-event PostBeginPlay()
+simulated event PostBeginPlay()
 {
 	PowerCheckVar = AnimNodeBlend(Mesh.FindAnimNode('PowerCheck'));
 
@@ -22,7 +22,7 @@ event PostBeginPlay()
 
 event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
-	super.TakeDamage(DamageAmount, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+	//super.TakeDamage(DamageAmount, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
 
 	Health -= DamageAmount;
 	if(Health < 0)

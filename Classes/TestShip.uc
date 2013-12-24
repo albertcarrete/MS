@@ -7,7 +7,7 @@ simulated event PostBeginPlay(){
 	SMesh.SetActorCollision(false, false, false);
 }
 
-function SpawnShipPart(class<ShipPart> ShipPartClass, float locXOffset, float locYOffset, float locZOffset, optional float rotYawOffset, optional float rotPitchOffset, optional float rotRollOffset){
+function ShipPart SpawnShipPart(class<ShipPart> ShipPartClass, float locXOffset, float locYOffset, float locZOffset, optional float rotYawOffset, optional float rotPitchOffset, optional float rotRollOffset){
 	local Vector tempLoc;
 	local Rotator tempRot;
 	local ShipPart tempShipPart;
@@ -26,13 +26,16 @@ function SpawnShipPart(class<ShipPart> ShipPartClass, float locXOffset, float lo
 	tempLoc.Z += locZOffset;
 	
 	tempShipPart = Spawn(ShipPartClass, , , tempLoc, tempRot);
+	ShipPartsArray.AddItem(tempShipPart);
 	tempShipPart.ShipOwner = self;
 	if(tempShipPart.bIsWeapon){
-		ShipWeaponArray.AddItem(tempShipPart);
+		ShipWeaponArray.AddItem(ShipWeapon(tempShipPart));
 		PawnOwner.ClientMessage("Found a Ship Weapon!!");
 	}
 
 	tempShipPart.BaseToOwner();
+
+	return tempShipPart;
 }
 
 function SpawnShipLight(class<ShipLight> ShipPartClass, float locXOffset, float locYOffset, float locZOffset, optional float rotYawOffset, optional float rotPitchOffset, optional float rotRollOffset){
@@ -213,7 +216,7 @@ function SpawnAllShipParts(){
 	SpawnShipPart(class'ShipWeapon', -188, 400,136, 16384, , -16384);
 
 
-	SpawnShipPart(class'Seat', 172, -284, 0, -16384);
+	theSeat = Seat(SpawnShipPart(class'Seat', 172, -284, 0, -16384));
 
 
 
@@ -231,5 +234,6 @@ function SpawnAllShipParts(){
 
 DefaultProperties
 {
+	
 	//bHidden = true
 }

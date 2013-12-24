@@ -1,6 +1,9 @@
 class SControllerBot extends SController;
 
 var S_Pawn Target;
+
+var Ship ShipTarget;
+
 /** Used so AI doesn't hold forward in space, but instead presses it in intervals*/
 var bool bAllowPressForward;
 var int MovementIntensity;//Multiplier to movement to controll ai movement
@@ -24,7 +27,10 @@ var bool bIsShooting;
 /** Distance the AI should keep from it's target when shooting*/
 var float DistanceToStopForShooting;
 
+var bool bStartedFiring;
+
 event PostBeginPlay(){
+	Super.PostBeginPlay();
 	SPlayer_Pawn(Pawn).bIsBot = true;
 }
 
@@ -32,6 +38,7 @@ event PostBeginPlay(){
 
 event PlayerTick( float DeltaTime ){
 	local float randDelay;
+	local Vector tempVel, ShipX, ShipY, ShipZ;
 
 	local Vector TargetAim;
 
@@ -45,14 +52,35 @@ event PlayerTick( float DeltaTime ){
 
 	DetectSurroundings();
 
-	if(Target != none){
+	if(S_Pawn(Pawn).bDrivingShip && S_Pawn(Pawn).ShipActor != none){/////SHIP AI
+		
+		GetAxes(S_Pawn(Pawn).ShipActor.Rotation, ShipX, ShipY, ShipZ);
+
+		S_Pawn(Pawn).ShipActor.SetRotation(RInterpTo(S_Pawn(Pawn).ShipActor.Rotation, Rotator(ShipTarget.Location - S_Pawn(Pawn).ShipActor.Location), DeltaTime, 90000));
+
+		if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) > 5000){
+			tempVel = S_Pawn(Pawn).ShipActor.Location + (ShipX * (3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy)) * DeltaTime);
+			S_Pawn(Pawn).ShipActor.SetLocation(tempVel);
+			S_Pawn(Pawn).ShipActor.ShipMoving(3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy) * DeltaTime);
+		}
+
+		if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) < 10000 && ShipTarget.bIsEnemy != bIsEnemy){
+			if(!bStartedFiring){
+				bStartedFiring = true;
+				SetTimer(0.3, false, 'FireWeapon');
+			}
+		}else
+			S_Pawn(Pawn).StopFire(0);
+
+
+	}else if(Target != none){
 
 		//SetRotation(RInterpTo(Rotator(Target.Location - Location), Rotation, DeltaTime, 40000));
 
 		DistanceFromTarget = GetDistance(Target.Location);
 
 		MovementIntensity = 1;//Let the pawn walk at regular pace(times 1)
-
+			
 		if(!S_Pawn(Pawn).bExperiencingGravity){
 
 			if(DistanceFromTarget > 300 || (bIsEnemy != SController(Target.Controller).bIsEnemy && S_Pawn(Pawn).Weapon == none)){
@@ -155,30 +183,52 @@ event PlayerTick( float DeltaTime ){
 
 function FireWeapon(){
 	Pawn.StartFire(0);
+	Pawn.StopFire(0);
+
+	bStartedFiring = false;
 	bAllowMelee = true;
 }
 
 function DetectSurroundings(){
 	local S_Pawn P;
+	local Ship S;
 	
 	`log("YEAHHHHHHH");
-	foreach AllActors( class 'S_Pawn', P )
-	{
-		if(P.Health > 0 && GetDistance(P.Location) < SightDistance){
-			`log("FOUND SPAWN IN AREA!!!!");
-			if(SController(P.Controller).bIsEnemy != bIsEnemy)//If the pawn is not your ally
-			{
-				`log("FOUND SPAWN ENEMY!!!!");
-				if(Target == none || SController(Target.Controller).bIsEnemy == bIsEnemy || GetDistance(Target.Location) > GetDistance(P.Location))
-					SetTarget(P, P.Location);
+	
+	if(!S_Pawn(Pawn).bDrivingShip){
+	
+		foreach AllActors( class 'S_Pawn', P )
+		{
+			if(P != Target && P.Health > 0 && GetDistance(P.Location) < SightDistance){
+				`log("FOUND SPAWN IN AREA!!!!");
+				if(SController(P.Controller).bIsEnemy != bIsEnemy)//If the pawn is not your ally
+				{
+					`log("FOUND SPAWN ENEMY!!!!");
+					if(Target == none || SController(Target.Controller).bIsEnemy == bIsEnemy || GetDistance(Target.Location) > GetDistance(P.Location))
+						SetTarget(P, P.Location);
 
-			}else if(Target == none){
-				`log("FOUND SPAWN FRIEND!!!!");
-				SetTarget(P, P.Location);
+				}else if(Target == none){
+					`log("FOUND SPAWN FRIEND!!!!");
+					SetTarget(P, P.Location);
+				}
+			}
+		}
+	}else{
+
+		foreach AllActors( class 'Ship', S){
+			if(S != S_Pawn(Pawn).ShipActor && S != ShipTarget && S.Health > 0){
+				if(S.bIsEnemy != bIsEnemy){
+					if(ShipTarget == none || ShipTarget.bIsEnemy == bIsEnemy || (GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) > GetDistance(S_Pawn(Pawn).ShipActor.Location, S.Location)))
+						ShipTarget = S;
+				}else if(ShipTarget == none || ((GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) > GetDistance(S_Pawn(Pawn).ShipActor.Location, S.Location))) && ShipTarget.bIsEnemy == bIsEnemy){
+					ShipTarget = S;
+				}
 			}
 		}
 	}
 }
+
+
 
 state NewPlayerWalking{
 	
@@ -438,7 +488,9 @@ function UpdateRotation( float DeltaTime )
 		tempRot = Rotation;
 		tempRot.Pitch=0;
 		tempRot.Roll=0;
-		Pawn.SetRotation(tempRot);
+		
+		Pawn.FaceRotation(tempRot, DeltaTime);
+		//Pawn.SetRotation(tempRot);
 	}
 }
 
@@ -465,6 +517,13 @@ function Vector GetTargetDirection(){
 	return tempVel;
 }
 
+function Vector GetShipTargetDirection(){
+	local Vector tempVel;
+
+	tempVel = Normal(ShipTarget.Location - S_Pawn(Pawn).ShipActor.Location);
+	return tempVel;
+}
+
 function StopPressingForwards(){
 	//S_Pawn(Pawn).SetPressForwards(false);
 	bAllowPressForward = false;
@@ -487,10 +546,13 @@ function SetEnemy(bool bEnemy){
 	bIsEnemy = bEnemy;
 }
 
-function float GetDistance(Vector OtherLocation){
+function float GetDistance(Vector OtherLocation, optional Vector SecondLocation){
 	local float Distance;
 
-	Distance = VSize(Pawn.Location - OtherLocation);
+	if(SecondLocation == vect(0,0,0))
+		Distance = VSize(Pawn.Location - OtherLocation);
+	else
+		Distance = VSize(OtherLocation - SecondLocation);
 
    return Distance;
 }
@@ -517,9 +579,12 @@ function Rotator GetAdjustedAimFor( Weapon W, vector StartFireLoc )
 
 DefaultProperties
 {
+	bStartedFiring = false
+
 	bIsShooting = false
 	bAllowMelee = true
 
+	bIsBot = true
 	bIsPlayer=false
 
 	bIsEnemy = false

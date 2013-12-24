@@ -3,6 +3,8 @@ class S_Pawn extends UTPawn;
 /** The Actor we are currently ready to interact with. Determined by tracing the players view*/
 var Actor CurrentActiveActor, CurrentSeatActor;
 
+var SelectionCircle SelectionCircleActor;
+
 /** The location the player has to stay in when sitting(location of the chair)*/
 var Vector SeatLocation;
 
@@ -329,10 +331,14 @@ function S_Pawn CreatePlayer(bool bIncludeWeapon, optional Vector loc){
 
 	GetAxes(Rotation, X, Y, Z);
 
-	if(loc != vect(0,0,0))
+	if(loc != vect(0,0,0)){
+		//loc.Z=0;
 		tempPawn = Spawn(class'SPlayer_Pawn', , , loc);
-	else
+	}else{
+		//loc = Location;
+		//loc.Z = 0;
 		tempPawn = Spawn(class'SPlayer_Pawn', , , Location + X*700);
+	}
 
 	if(tempPawn != none){
 		tempPawn.Controller = Spawn(class'SControllerBot');
@@ -360,22 +366,54 @@ exec function PressUse(){
 	ActiveShipPart(CurrentActiveActor).Interact(self);
 }
 
-exec function CreateFriend(bool bIncludeWeapon, optional Vector loc){
+exec function StartInvasion(){
+	SetTimer(5, true, 'CreateEnemyShipRandomLoc');
+}
+
+exec function StopInvasion(){
+	SetTimer(0, false, 'CreateEnemyShipRandomLoc');
+}
+
+function CreateEnemyShipRandomLoc(){
 	local S_Pawn tempPawn;
-	local SControllerBot tempBot;
+	local Vector spawnLocation;
 
-	tempPawn = CreatePlayer(bIncludeWeapon, loc);
+	tempPawn = CreateEnemy(false);
 
-	if(tempPawn != none){
-		tempBot = SControllerBot(tempPawn.Controller);
+	if(tempPawn!=none){
+		spawnLocation = GetRandomLocation(8000, 10000, Location);
+		spawnLocation.Z = 0;
 
-		if(tempBot != none){
-			//tempBot.SetTarget(self, Location);
+		tempPawn.CreateCockpit(spawnLocation);
+		
+		if(tempPawn.ShipActor != none){
+			tempPawn.SetLocation(tempPawn.ShipActor.Location + tempPawn.ShipActor.defaultSpawnPoint);
+			tempPawn.ShipActor.theSeat.Interact(tempPawn);
 		}
 	}
 }
 
-exec function CreateEnemy(bool bIncludeWeapon,  optional Vector loc){
+exec function CreateEnemyShip(){
+	local S_Pawn tempPawn;
+	local Vector spawnLocation, X, Y, Z;
+
+	tempPawn = CreateEnemy(false);
+
+	if(tempPawn!=none){
+		tempPawn.CreateCockpit();
+
+		spawnLocation = tempPawn.ShipActor.Location;
+		GetAxes(tempPawn.ShipActor.Rotation, X, Y, Z);
+		spawnLocation += (X*tempPawn.ShipActor.defaultSpawnPoint.X) + (Y*tempPawn.ShipActor.defaultSpawnPoint.Y) + (Z*tempPawn.ShipActor.defaultSpawnPoint.Z);
+
+		tempPawn.SetLocation(spawnLocation);
+
+		tempPawn.ShipActor.theSeat.Interact(tempPawn);
+		
+	}
+}
+
+exec function S_Pawn CreateFriend(bool bIncludeWeapon, optional Vector loc){
 	local S_Pawn tempPawn;
 	local SControllerBot tempBot;
 
@@ -386,11 +424,34 @@ exec function CreateEnemy(bool bIncludeWeapon,  optional Vector loc){
 
 		if(tempBot != none){
 			//tempBot.SetTarget(self, Location);
+			tempBot.SetEnemy(SController(Controller).bIsEnemy);
+		}
+		return tempPawn;
+	}
+
+	return none;
+}
+
+exec function S_Pawn CreateEnemy(bool bIncludeWeapon,  optional Vector loc){
+	local S_Pawn tempPawn;
+	local SControllerBot tempBot;
+
+	tempPawn = CreatePlayer(bIncludeWeapon, loc);
+
+	if(tempPawn != none){
+		tempBot = SControllerBot(tempPawn.Controller);
+
+		if(tempBot != none){
+			//tempBot.SetTarget(self, Location);
+			tempBot.SetEnemy(!SController(Controller).bIsEnemy);
 		}
 		
-		tempBot.SetEnemy(true);
+
+		return tempPawn;
 		//tempPawn.StartFire(0);
 	}
+
+	return none;
 }
 
 exec function CreateFireFight(){
@@ -509,19 +570,23 @@ function Vector GetRandomVelocity(float MaxVel){
 	return tempVel;
 }
 
-simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int MinXandYDistance)
+simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int MinXandYDistance, optional Vector StartingPoint)
 {
 	local Vector randomLoc;
 	local float randXOffset, randYOffset, randZOffset, tempRand;
 
-	if(MinXandYDistance > 0 || MinXandYDistance < 0){
-		randomLoc.X = MinXandYDistance;
-		randomLoc.Y = MinXandYDistance;
-		randomLoc.Z = MinXandYDistance;
-	}else{
+	if(StartingPoint != vect(0,0,0))
+		randomLoc = StartingPoint;
+	else{
 		randomLoc.X = 0;
 		randomLoc.Y = 0;
 		randomLoc.Z = 0;
+	}
+
+	if(MinXandYDistance > 0 || MinXandYDistance < 0){
+		randXOffset = MinXandYDistance;
+		randYOffset = MinXandYDistance;
+		randZOffset = MinXandYDistance;
 	}
 
 	randXOffset += Rand(MaxXandYDistance);
@@ -545,17 +610,24 @@ simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int M
 	return randomLoc;
 }
 
-exec function CreateCockpit(){
+exec function Ship CreateCockpit(optional Vector SpawnLoc){
 	local Rotator ShipRotation;
-	local Vector ShipLocation;
+	local Vector ShipLocation, X, Y, Z;
 	local Ship tempShipActor;
 
 	//ShipLocation.X = 0;
 	//ShipLocation.Y = 0;
 	//ShipLocation.Z = 0;//1280.000000;
 	
-	ShipLocation = Location;
-	ShipLocation.Z += 150;
+	GetAxes(Controller.Rotation, X, Y, Z);
+
+	if(SpawnLoc != vect(0,0,0))
+		ShipLocation = SpawnLoc;
+	else
+		ShipLocation = Location - X*12000;
+	
+	ShipLocation.Z = 0;
+
 
 	ShipRotation.Pitch =0;
 	ShipRotation.Yaw = 0;
@@ -566,6 +638,8 @@ exec function CreateCockpit(){
 	BuildingActor = tempShipActor;
 	BuildingActor.PawnOwner = self;
 	SetBuildingMode(true);
+
+	return tempShipActor;
 }
 
 exec function CreateShip(){
@@ -725,6 +799,7 @@ function bool CheckIfInShip(){
 	}else{
 		//ClientMessage("Getting rid of old base!");
 		ShipActor.Detach(self);
+		ShipActor = none;
 	}
 
 	//ShipActor.Detach(self);
@@ -820,7 +895,7 @@ function LimitVel(){
 
 simulated State Dying
 {
-	event BeginState(Name PreviousStateName){
+	simulated event BeginState(Name PreviousStateName){
 		//SetTimer(3, false, 'SleepRigidBody');
 		CylinderComponent.SetActorCollision(false,false,false);
 
@@ -928,7 +1003,7 @@ simulated event Tick(float DeltaTime)
 
 	Super.Tick(DeltaTime);
 
-	`log("THE STATE!!!!!" @ GetStateName());
+	//`log("THE STATE!!!!!" @ GetStateName());
 
 	//GravityDirection = vect(0, 0, -1);
 
@@ -978,29 +1053,37 @@ simulated event Tick(float DeltaTime)
 		tempVel.X = 0; tempVel.Y = 0; tempVel.Z = 0;
 		Velocity = tempVel;
 		
-		if(ShipActor.bPowerOn){
+		if(!SController(Controller).bIsBot && ShipActor.bPowerOn){
 			if(bPressingForwards){
-				tempVel = ShipActor.Location + (pawnX * 1500 * DeltaTime);
+				tempVel = ShipActor.Location + (pawnX * (3000 + 1000 * (ShipActor.Energy/ShipActor.MaxEnergy)) * DeltaTime);
 				ShipActor.SetLocation(tempVel);
 				tempLoc = Location + (pawnX * 1500  * DeltaTime);
+				ShipActor.ShipMoving(3000 + 1000 * (ShipActor.Energy/ShipActor.MaxEnergy) * DeltaTime);
 			}else if(bPressingBackwards){
-				tempVel = ShipActor.Location - (pawnX * 1500 * DeltaTime);
+				tempVel = ShipActor.Location - (pawnX * (3000 + 1000 * (ShipActor.Energy/ShipActor.MaxEnergy)) * DeltaTime);
 				ShipActor.SetLocation(tempVel);
+				ShipActor.ShipMoving((3000 + 1000 * (ShipActor.Energy/ShipActor.MaxEnergy) * DeltaTime) * -1);
 			}
-				//ShipActor.Velocity = ShipActor.Velocity + pawnX *15;
-				//SetLocation(tempLoc);
+			else
+				ShipActor.ShipMoving(0);
 	
 			if(bPressingShipTurnRight){
 				tempRot = ShipActor.Rotation;
-				TurnDifference = 5000;
+				TurnDifference = 10000;//5000;
 				tempRot.Yaw += TurnDifference * DeltaTime;
 				ShipActor.SetRotation(tempRot);
+				ShipActor.SetTurning(TurnDifference);
 			}
 			else if(bPressingShipTurnLeft){
 				tempRot = ShipActor.Rotation;
-				TurnDifference = -5000;
+				TurnDifference = -10000;//-5000;
 				tempRot.Yaw += TurnDifference * DeltaTime;
 				ShipActor.SetRotation(tempRot);
+				ShipActor.SetTurning(TurnDifference);
+
+			}
+			else{
+				ShipActor.SetTurning(0);
 			}
 		}
 		//tempRot = Rotation;
@@ -1238,8 +1321,11 @@ function SetDriveShip(bool bDriving){
 	if(bDriving){
 		DriveBlend.SetBlendTarget(1, 0.5);
 		SController(Controller).GotoState('PlayerDriving');
+		SetTimer(0.3, false, 'PressWorldView');
+		ShipActor.SetEnemy(SController(Controller).bIsEnemy);
 	}
 	else{
+		PressWorldView();
 		DriveBlend.SetBlendTarget(0, 0.5);
 		Controller.GotoState('PlayerWalking');
 		SetPhysics(PHYS_Falling);
@@ -1333,14 +1419,31 @@ function ActivateJetPack(){
 }
 
 exec function PressWorldView(){
+	local Vector X, Y, Z;
+
 	bWorldView = !bWorldView;
 	if(bWorldView){
 		GotoState('WorldView');
+		
+		if(SelectionCircleActor != none){
+			SelectionCircleActor.Destroy();
+			WorldInfo.ForceGarbageCollection();
+		}
+
+		GetAxes(ShipActor.Rotation, X, Y, Z);
+
+		SelectionCircleActor = Spawn(class'SelectionCircle', self, , ShipActor.theSeat.Location - X * 700);
+		SelectionCircleActor.SetPawnOwner(self);
+		SelectionCircleActor.SetBase(ShipActor.theSeat);
 		//SController(Controller).GotoState('WorldView');
 	}
-	else
+	else{
 		GotoState('PlayerWalking');
+		SelectionCircleActor.Destroy();
+		SelectionCircleActor = none;
+		WorldInfo.ForceGarbageCollection();
 		//SController(Controller).GotoState('PlayerWalking');
+	}
 }
 
 function DropToGround(){
@@ -1589,7 +1692,7 @@ function TracePlayerInteract(){
 	HitActor = Trace(HitLocation, HitNormal, ViewPointLoc + X * 300, ViewPointLoc, true);
 	DrawDebugLine(ViewPointLoc, ViewPointLoc + X * 300, 0, 1, 0);
 
-	if(HitActor.IsA('ActiveShipPart') && GetDistance(HitLocation) < 150){
+	if(HitActor != none && HitActor.IsA('ActiveShipPart') && GetDistance(HitLocation) < 150){
 		CurrentActiveActor = HitActor;
 	}else{
 		CurrentActiveActor = none;
@@ -1721,7 +1824,7 @@ defaultproperties
 	DrawScale = 1.1
 
    IsoCamAngle=15000//6420 //35.264 degrees
-   CamOffsetDistance=8000.0
+   CamOffsetDistance=20000.0
 
 	CamOffset=(X=15,Y=30,Z=-30)
 

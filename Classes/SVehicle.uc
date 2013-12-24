@@ -2,7 +2,7 @@ class SVehicle extends Ship;
 
 var StaticMeshComponent collisionMesh;
 var SkeletalMeshComponent vehicleMesh;
-event PostBeginPlay(){
+simulated event PostBeginPlay(){
 	super.PostBeginPlay();
 	collisionMesh.SetHidden(true);
 

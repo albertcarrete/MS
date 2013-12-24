@@ -1009,23 +1009,8 @@ simulated function AllowJump()
 	bAllowJump = true;
 }
 
-function SetDriveShip(bool bDriving){
-	bDrivingShip = bDriving;
-	if(bDriving){
-		DriveBlend.SetBlendTarget(1, 0.5);
-		SController(Controller).GotoState('PlayerDriving');
-	}
-	else{
-		DriveBlend.SetBlendTarget(0, 0.5);
-		Controller.GotoState('PlayerWalking');
-	}
-}
 
 //////// FUNCTIONS THAT HANDLE BOOLS FOR HOLDING BUTTONS!!!!////////////
-
-exec function ToggleDriveShip(){
-	SetDriveShip(!bDrivingShip);
-}
 
 exec function PressRollRight(){
 	bPressingRollRight = true;
@@ -1051,17 +1036,6 @@ exec function StopPressJump(){
 function ActivateJetPack(){
 	if(bPressingJump)
 		bJetPackActive = true;
-}
-
-exec function PressWorldView(){
-	bWorldView = !bWorldView;
-	if(bWorldView){
-		GotoState('WorldView');
-		//SController(Controller).GotoState('WorldView');
-	}
-	else
-		GotoState('PlayerWalking');
-		//SController(Controller).GotoState('PlayerWalking');
 }
 
 simulated function SetPressShipTurnRight(bool bTurnRight)
