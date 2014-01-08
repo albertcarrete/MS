@@ -19,9 +19,17 @@ function SpawnProjectile(){
 
 		newLoc = Location;
 		newLoc += 800 * X;
-		P = Spawn(class'S_ShipCannonProj',self,,newLoc);
-		P.WeaponOwner = self;
-		P.Init(X);
+
+		if(ShipOwner.EnemyShip != none){
+
+			P = Spawn(class'S_ShipCannonProj',self,,newLoc, Rotator(Normal(ShipOwner.EnemyShip.Location - newLoc)));
+			P.WeaponOwner = self;
+			P.Init(Normal(ShipOwner.EnemyShip.Location - newLoc));
+		}else{
+			P = Spawn(class'S_ShipCannonProj',self,,newLoc);
+			P.WeaponOwner = self;
+			P.Init(X);
+		}
 
 	}
 }

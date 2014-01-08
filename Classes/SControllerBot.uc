@@ -52,28 +52,32 @@ event PlayerTick( float DeltaTime ){
 
 	DetectSurroundings();
 
-	if(S_Pawn(Pawn).bDrivingShip && S_Pawn(Pawn).ShipActor != none){/////SHIP AI
-		
-		GetAxes(S_Pawn(Pawn).ShipActor.Rotation, ShipX, ShipY, ShipZ);
+	if(S_Pawn(Pawn).bDrivingShip){/////SHIP AI
+		if(S_Pawn(Pawn).ShipActor != none){
+			GetAxes(S_Pawn(Pawn).ShipActor.Rotation, ShipX, ShipY, ShipZ);
 
-		S_Pawn(Pawn).ShipActor.SetRotation(RInterpTo(S_Pawn(Pawn).ShipActor.Rotation, Rotator(ShipTarget.Location - S_Pawn(Pawn).ShipActor.Location), DeltaTime, 90000));
+			if(!S_Pawn(Pawn).ShipActor.bBattleMode){
+				S_Pawn(Pawn).ShipActor.SetRotation(RInterpTo(S_Pawn(Pawn).ShipActor.Rotation, Rotator(ShipTarget.Location - S_Pawn(Pawn).ShipActor.Location), DeltaTime, 90000));
 
-		if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) > 5000){
-			tempVel = S_Pawn(Pawn).ShipActor.Location + (ShipX * (3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy)) * DeltaTime);
-			S_Pawn(Pawn).ShipActor.SetLocation(tempVel);
-			S_Pawn(Pawn).ShipActor.ShipMoving(3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy) * DeltaTime);
-		}
+				if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) > 5000){
+					tempVel = S_Pawn(Pawn).ShipActor.Location + (ShipX * (3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy)) * DeltaTime);
+					S_Pawn(Pawn).ShipActor.SetLocation(tempVel);
+					S_Pawn(Pawn).ShipActor.ShipMoving(3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy) * DeltaTime);
+				}
 
-		if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) < 10000 && ShipTarget.bIsEnemy != bIsEnemy){
-			if(!bStartedFiring){
-				bStartedFiring = true;
-				SetTimer(0.3, false, 'FireWeapon');
+				if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) < 10000 && ShipTarget.bIsEnemy != bIsEnemy){
+					if(!bStartedFiring){
+						bStartedFiring = true;
+						SetTimer(0.3, false, 'FireWeapon');
+					}
+				}else
+					S_Pawn(Pawn).StopFire(0);
+			}else{
+				S_Pawn(Pawn).StopFire(0);
 			}
-		}else
-			S_Pawn(Pawn).StopFire(0);
-
-
-	}else if(Target != none){
+		}
+	}
+	else if(Target != none){
 
 		//SetRotation(RInterpTo(Rotator(Target.Location - Location), Rotation, DeltaTime, 40000));
 
@@ -195,6 +199,11 @@ function DetectSurroundings(){
 	
 	`log("YEAHHHHHHH");
 	
+	if(Target!= none && Target.Health <= 0)
+		Target=none;
+	if(ShipTarget != none && ShipTarget.Health <= 0)
+		ShipTarget=none;
+
 	if(!S_Pawn(Pawn).bDrivingShip){
 	
 		foreach AllActors( class 'S_Pawn', P )

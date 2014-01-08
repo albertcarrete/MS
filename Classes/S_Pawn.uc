@@ -302,12 +302,18 @@ simulated function SetWeapAnimType(EWeapAnimType AnimType)
 
 simulated function HandleWeaponAnims()
 {
-	if(SWeapon(Weapon) != none){
+	if(SWeapon(Weapon) != none && !SWeapon(Weapon).bOneHanded){
 		PlaySlotAnims(ArmsAnimSlot, SWeapon(Weapon).HoldAnim, 3, true,,0.2,0.2,true);
 		ClientMessage("Found SWeapon: HandleWeaponAnims()");
 	}
 	else
 		StopPlaySlotAnims(ArmsAnimSlot, 0.2);
+}
+
+function ThrowActiveWeapon( optional bool bDestroyWeap )
+{
+	Super.ThrowActiveWeapon(bDestroyWeap);
+	HandleWeaponAnims();
 }
 
 function SetBuildingMode(bool bBuildingMode){
@@ -468,7 +474,8 @@ exec function CreateFireFight(){
 }
 
 exec function AddWeapon(){
-	CreateInventory(class'SWeap_LinkGun');
+	//CreateInventory(class'SWeap_TestRifle');
+	CreateInventory(class'SWeap_WpA_HandGun');
 }
 
 exec function CreateHelper(){
@@ -638,6 +645,42 @@ exec function Ship CreateCockpit(optional Vector SpawnLoc){
 	BuildingActor = tempShipActor;
 	BuildingActor.PawnOwner = self;
 	SetBuildingMode(true);
+
+	SetLocation(tempShipActor.Location + tempShipActor.defaultSpawnPoint);
+
+	return tempShipActor;
+}
+
+exec function Ship CreateCockpit2(optional Vector SpawnLoc){
+	local Rotator ShipRotation;
+	local Vector ShipLocation, X, Y, Z;
+	local Ship tempShipActor;
+
+	//ShipLocation.X = 0;
+	//ShipLocation.Y = 0;
+	//ShipLocation.Z = 0;//1280.000000;
+	
+	GetAxes(Controller.Rotation, X, Y, Z);
+
+	if(SpawnLoc != vect(0,0,0))
+		ShipLocation = SpawnLoc;
+	else
+		ShipLocation = Location - X*12000;
+	
+	ShipLocation.Z = 0;
+
+
+	ShipRotation.Pitch =0;
+	ShipRotation.Yaw = 0;
+	ShipRotation.Roll = 0;
+    
+	tempShipActor = Spawn(class'TestShip2', , , ShipLocation, ShipRotation);
+	SetShipActor(tempShipActor);
+	BuildingActor = tempShipActor;
+	BuildingActor.PawnOwner = self;
+	SetBuildingMode(true);
+
+	SetLocation(tempShipActor.Location + tempShipActor.defaultSpawnPoint);
 
 	return tempShipActor;
 }
@@ -951,13 +994,20 @@ simulated function SleepRigidBody(){
 
 event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
+	if(Health <= 0)
+		return;
 
 	Super.TakeDamage(Damage, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+
+	if(Health <= 0)
+		Death();
 }
 
 simulated function Death(){
 	
-
+	if(SelectionCircleActor!=none)
+		SelectionCircleActor.Destroy();
+/*
 	SController(Controller).GotoState('PawnDead');
 
 	// if we had some other rigid body thing going on, cancel it
@@ -991,7 +1041,7 @@ simulated function Death(){
 	// we'll use the rigid body collision to check for falling damage
 	Mesh.ScriptRigidBodyCollisionThreshold = MaxFallSpeed;
 	Mesh.SetNotifyRigidBodyCollision(true);
-	Mesh.WakeRigidBody();
+	Mesh.WakeRigidBody();*/
 }
 
 simulated event Tick(float DeltaTime)
@@ -1053,7 +1103,7 @@ simulated event Tick(float DeltaTime)
 		tempVel.X = 0; tempVel.Y = 0; tempVel.Z = 0;
 		Velocity = tempVel;
 		
-		if(!SController(Controller).bIsBot && ShipActor.bPowerOn){
+		if(!SController(Controller).bIsBot && ShipActor.bPowerOn && !ShipActor.bBattleMode){
 			if(bPressingForwards){
 				tempVel = ShipActor.Location + (pawnX * (3000 + 1000 * (ShipActor.Energy/ShipActor.MaxEnergy)) * DeltaTime);
 				ShipActor.SetLocation(tempVel);
@@ -1086,13 +1136,17 @@ simulated event Tick(float DeltaTime)
 				ShipActor.SetTurning(0);
 			}
 		}
+
 		//tempRot = Rotation;
 		//tempRot.Yaw += TurnDifference;
 		//SetRotation(tempRot);
-		tempRot = ShipActor.Rotation;
-		//tempRot.Yaw += 16384;
+		tempRot = ShipActor.theSeat.Rotation;
+		tempRot.Yaw += 16384;
 		SetRotation(tempRot);
-		SetLocation(CurrentSeatActor.Location + vect(0,0,1) * 53);
+		tempLoc = CurrentSeatActor.Location;
+		tempLoc.Z+=53;
+
+		SetLocation(tempLoc);
 	}
 
 	if(!bExperiencingGravity && !bDrivingShip){
@@ -1154,6 +1208,31 @@ state WorldView{
 
 ////////////////////////NEW CUSTOM 3rd PErson Camera STUFF
 
+simulated function Vector ShakeCam(Vector Start, int ShakeIntensity){
+	local Vector tempLoc, X, Y, Z;
+	local int tempValue, randInt;
+
+	tempLoc = Start;
+	if(ShipActor != none){
+		GetAxes(ShipActor.Rotation, X, Y, Z);
+		
+		tempValue = Rand(ShakeIntensity);
+		randInt = Rand(2);
+		if(randInt == 0)
+			tempValue *= -1;
+		tempLoc += Y * tempValue;
+		
+		tempValue = Rand(ShakeIntensity);
+		randInt = Rand(2);
+		if(randInt == 0)
+			tempValue *= -1;
+		tempLoc += X * tempValue;
+
+	}
+
+	return tempLoc;
+}
+
 //orbit cam, follows player controller rotation
 simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out rotator out_CamRot, out float out_FOV )
 {
@@ -1165,8 +1244,12 @@ simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out
 	vecCamHeight += CamHeight*Z;
 	vecCamHeight += CamYOffset*Y;
 
-	Start = Location;
-	End = (Location+vecCamHeight)-(Vector(Controller.Rotation) * CamDistance);  //cam follow behind player controller
+	if(ShipActor.bRecentlyTookDamage)
+		Start = ShakeCam(Location, 5);
+	else
+		Start = Location;
+
+	End = (Start+vecCamHeight)-(Vector(Controller.Rotation) * CamDistance);  //cam follow behind player controller
 	out_CamLoc = End;
 
 	
@@ -1321,11 +1404,11 @@ function SetDriveShip(bool bDriving){
 	if(bDriving){
 		DriveBlend.SetBlendTarget(1, 0.5);
 		SController(Controller).GotoState('PlayerDriving');
-		SetTimer(0.3, false, 'PressWorldView');
+		//SetTimer(0.3, false, 'PressWorldView');
 		ShipActor.SetEnemy(SController(Controller).bIsEnemy);
 	}
 	else{
-		PressWorldView();
+		//PressWorldView();
 		DriveBlend.SetBlendTarget(0, 0.5);
 		Controller.GotoState('PlayerWalking');
 		SetPhysics(PHYS_Falling);
@@ -1703,7 +1786,7 @@ exec function StartAim()
 {
 	bAiming = true;
 	PlaySlotAnims(TorsoAnimSlot, SWeapon(Weapon).AimAnim, 3, true,,0.2,0.2,true);
-	UTPlayerController(Controller).StartZoom(45,60);
+	UTPlayerController(Controller).StartZoom(50,60);
 }
 
 exec function StopAim(){

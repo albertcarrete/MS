@@ -4,7 +4,7 @@ function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 
-	SpawnRocks(800, 100000, 100);
+	SpawnRocks(Rand(800), 100000, 100);
 	
 }
 
@@ -89,19 +89,23 @@ function Vector GetRandomVelocity(float MaxVel){
 	return tempVel;
 }
 
-simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int MinXandYDistance)
+simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int MinXandYDistance, optional Vector StartingPoint)
 {
 	local Vector randomLoc;
 	local float randXOffset, randYOffset, randZOffset, tempRand;
 
-	if(MinXandYDistance > 0 || MinXandYDistance < 0){
-		randomLoc.X = MinXandYDistance;
-		randomLoc.Y = MinXandYDistance;
-		randomLoc.Z = MinXandYDistance;
-	}else{
+	if(StartingPoint != vect(0,0,0))
+		randomLoc = StartingPoint;
+	else{
 		randomLoc.X = 0;
 		randomLoc.Y = 0;
 		randomLoc.Z = 0;
+	}
+
+	if(MinXandYDistance > 0 || MinXandYDistance < 0){
+		randXOffset = MinXandYDistance;
+		randYOffset = MinXandYDistance;
+		randZOffset = MinXandYDistance;
 	}
 
 	randXOffset += Rand(MaxXandYDistance);
@@ -132,10 +136,10 @@ function AddDefaultInventory( pawn PlayerPawn )
 
 DefaultProperties
 {
-	DefaultPawnClass=class'SPlayerWithShip_Pawn'
+	DefaultPawnClass=class'SPlayer_Pawn'//class'SPlayerWithShip_Pawn'
 	PlayerControllerClass=class'SController'
-	HUDType=class'ProjectS.MSHudWrapper'	
-	//HUDType=class'SHud'
+	//HUDType=class'ProjectS.MSHudWrapper'	
+	HUDType=class'SHud'
 	MapPrefixes[0]="S"
 	bUseClassicHUD=true
 	Name = "Default__SGameInfo"

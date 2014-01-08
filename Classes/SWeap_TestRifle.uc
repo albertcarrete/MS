@@ -1,9 +1,15 @@
-class SWeap_LinkGun extends SWeapon;
+class SWeap_TestRifle extends SWeapon;
 
 DefaultProperties
 {
+	bOneHanded = false
 
-	AttachmentClass=class'UTAttachment_Linkgun'
+	WeaponProjectiles(0)=SProj_Infantry
+
+	HoldAnim = H_HoldingRifle1
+	AimAnim = H_AimRifle1
+
+	AttachmentClass=class'SWeaponAttachment'
 
 	// Weapon SkeletalMesh
 	Begin Object Name=FirstPersonMesh
@@ -15,6 +21,6 @@ DefaultProperties
 	End Object
 
 	Begin Object Name=PickupMesh
-		SkeletalMesh=SkeletalMesh'WP_LinkGun.Mesh.SK_WP_LinkGun_3P'
+		SkeletalMesh=SkeletalMesh'TestRifle.Mesh.TestRifle_mesh'
 	End Object
 }

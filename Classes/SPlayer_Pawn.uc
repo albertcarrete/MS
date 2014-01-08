@@ -1115,6 +1115,7 @@ exec function StopAim(){
 simulated function ActivateShield(){
 	FullAnimSlot.PlayCustomMirrorAnim('H_ShieldAnim_2', 1, false, 0.2, 0.25, true);
 	ShieldActor.ArmorMesh.SetHidden(false);
+	ShieldActor.SetCollision(true,true);
 }simulated function DeactivateShield(){
 	StopPlaySlotAnims(FullAnimSlot, 0.25);
 	ShieldActor.ArmorMesh.SetHidden(true);
