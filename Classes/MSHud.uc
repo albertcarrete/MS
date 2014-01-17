@@ -1,19 +1,19 @@
 /*
  * MSHUD.uc
- * 
+ * MetalStar Player HUD
  */
-
 class MSHud extends GFxMoviePlayer;
 
-
 // Standard Flash Objects
+var GFxObject 					RootMC, 
+								ReticleMC, ReticlesMC,
+								OnBoardMC,
+								xLocTextField,yLocTextField,zLocTextField,
+								pRotTextField,yRotTextField,rRotTextField,
+				                magTextField,
+								shipHealthField,shipEnergyField;
 
-var GFxObject 					RootMC;
-var GFxObject                   xLocTextField,yLocTextField,zLocTextField;
-var GFxObject                   pRotTextField,yRotTextField,rRotTextField;
-var GFxObject                   magTextField;
-
-// CLIK Widgets
+// CLIK Widgets (buttons)
 var GFxClikWidget				TestBtn, ResBtn;
 
 // Custom Mouse Class
@@ -27,13 +27,26 @@ var float rotP, rotY, rotR;
 var float velX, velY, velZ;
 var float mag;
 
-//Strings For HUD
-var string xLocStr, yLocStr, zLocStr; // string variables to hold the x,y,z player positions
-var string pRotStr, yRotStr, rRotStr;
-var string magStr;
+var int shipHealth, shipEnergy;
+var int enemyShipHealth;
+var int enemyShipEnergy;
+var bool onboardShip;
+
+// ======================================================================================
+// STRINGS AND VALUES FOR HUD
+// ======================================================================================
+var string  xLocStr, yLocStr, zLocStr,      // string variables to hold the x,y,z player positions
+			pRotStr, yRotStr, rRotStr,      //                     hold the p,y,r player positions
+			magStr,                         // holds the magnitude of the player
+			shipHealthStr,                  // Ship Health
+			shipEnergyStr;                  // Ship Energy
 
 
+//========================================================================================
+//  START |  INITIALIZATION
+//========================================================================================
 // This initialization function is fired off by the HUD Wrapper when the HUD is instantiated.
+
 function Init(optional LocalPlayer player)
 {	
 	local int testNumber;
@@ -50,12 +63,15 @@ function Init(optional LocalPlayer player)
 	MyMouse.Init(player);
 	
 	// Caches a reference to the Flash root timeline.
-	RootMC = GetVariableObject("root");
-	
+	RootMC      = GetVariableObject("root");
+	ReticleMC   = RootMC.GetObject("reticle");
+	OnBoardMC   = RootMC.GetObject("OnBoard");
+
 	// Demonstrates how to grab a public variable (SomeNumber) from an AS3 document class.
 	testNumber = RootMC.GetInt("SomeNumber");
 	`log("Test Number: " @ testNumber);
 	
+	//When this menu is in use, ignore these keys
 	AddFocusIgnoreKey('LeftShift'); // This key is used to toggle the mouse cursor on and off so it is ignored
 	AddFocusIgnoreKey('W');
 	AddFocusIgnoreKey('A');
@@ -63,6 +79,65 @@ function Init(optional LocalPlayer player)
 	AddFocusIgnoreKey('D');
 }
 
+//========================================================================================
+//  GET |  SHIP HEALTH & ENERGY
+//========================================================================================
+// Determines if the player is onboard a ship via 'S_Pawn(GetPC().Pawn).ShipActor' which
+// checks to see if the player has a ship actor. 
+function int getShipHealth(){
+	if(S_Pawn(GetPC().Pawn).ShipActor != none){
+		return S_Pawn(GetPC().Pawn).ShipActor.Health;
+	}
+	else{
+		return 0;
+	}
+}
+function setShipHealth(){
+	shipHealth = getShipHealth();
+}
+function int getShipEnergy(){
+	if(S_Pawn(GetPC().Pawn).ShipActor != none){
+		return S_Pawn(GetPC().Pawn).ShipActor.Energy;
+	}
+	else{
+		return 0;
+	}
+}
+function setShipEnergy(){
+	shipEnergy = getShipEnergy();
+}
+
+//========================================================================================
+//  GET |  ENEMY SHIP HEALTH & ENERGY
+//========================================================================================
+
+function int getEnemyShipHealth(){
+	if(S_Pawn(GetPC().Pawn).ShipActor.EnemyShip != none){
+		return S_Pawn(GetPC().Pawn).ShipActor.EnemyShip.Health;
+	}
+	else{
+		return 0;
+	}
+}
+function setEnemyShipHealth(){
+	enemyShipHealth = getEnemyShipHealth();
+}
+function int getEnemyShipEnergy(){
+	if(S_Pawn(GetPC().Pawn).ShipActor.EnemyShip != none){
+		return S_Pawn(GetPC().Pawn).ShipActor.EnemyShip.Energy;
+	}
+	else{
+		return 0;
+	}
+}
+function int getShipTimerTime(){
+	if(S_Pawn(GetPC().Pawn).ShipActor != none){
+		return S_Pawn(GetPC().Pawn).ShipActor.TimerTime;
+	}
+	else{
+		return 0;
+	}
+}
 
 //PLAYER VELOCITY
 function vector getPlayerVelocity(){
@@ -106,7 +181,7 @@ function setPlayerRotation(){
 
 }
 
-//PLAYER LOCATION
+// PLAYER LOCATION
 function vector getPlayerLocation(){
 	return GetPC().Pawn.Location;
 }
@@ -122,57 +197,73 @@ function setPlayerLocation(){
 
 }
 
+//========================================================================================
+//  SET |  HUD STRINGS AND VALUES
+//========================================================================================
+// Notes: Might be beneficial to combine these all into one function, however comparmentalizing them
+// allows us to set the text only when needed if we have multiple huds or data being used / not used.
+// 
+
 function SetLocationText(string xLocCordinate, string yLocCordinate, string zLocCordinate)
 {
-    xLocTextField = GetVariableObject("_root.xLocation");
-    yLocTextField = GetVariableObject("_root.yLocation");
-    zLocTextField = GetVariableObject("_root.zLocation");
-
-    xLocTextField.SetText(xLocCordinate);
-	yLocTextField.SetText(yLocCordinate);
-	zLocTextField.SetText(zLocCordinate);
+	// Retreive the field in the swf root                       // Set the value for that AS3 field
+    xLocTextField = GetVariableObject("_root.xLocation");       xLocTextField.SetText(xLocCordinate);
+    yLocTextField = GetVariableObject("_root.yLocation");       yLocTextField.SetText(yLocCordinate);
+    zLocTextField = GetVariableObject("_root.zLocation");   	zLocTextField.SetText(zLocCordinate);
 }
 
 function SetRotationText(string yRotCordinate, string pRotCordinate, string rRotCordinate)
 {
-    pRotTextField = GetVariableObject("_root.pRotation");
-    yRotTextField = GetVariableObject("_root.yRotation");
-    rRotTextField = GetVariableObject("_root.rRotation");
-
-    pRotTextField.SetText(pRotCordinate);
-	yRotTextField.SetText(yRotCordinate);
-	rRotTextField.SetText(rRotCordinate);
+	// Retrieve the field in the swf root                       // Set the value for that AS3 field
+    pRotTextField = GetVariableObject("_root.pRotation");       pRotTextField.SetText(pRotCordinate);
+    yRotTextField = GetVariableObject("_root.yRotation");       yRotTextField.SetText(yRotCordinate);
+    rRotTextField = GetVariableObject("_root.rRotation");       rRotTextField.SetText(rRotCordinate);
 }
 
 function SetMagnitudeText(string magCordinate)
 {
-	magTextField = GetVariableObject("_root.mag");	
-	magTextField.SetText(magCordinate);
+	magTextField = GetVariableObject("_root.mag");	            magTextField.SetText(magCordinate);
 }
 
+function SetShipHealthText(string shipHealthValue)
+{
+	shipHealthField = GetVariableObject("_root.OnBoard.shipHealth");            shipHealthField.SetText(shipHealthValue);
+}
+function SetShipEnergyText(string shipEnergyValue)
+{
+	shipEnergyField = GetVariableObject("_root.OnBoard.shipEnergy");            shipEnergyField.SetText(shipEnergyValue);
+}
+
+//========================================================================================
+//  TICK
+//========================================================================================
 // This function is called by the HUD Wrapper.
 function TickHud(float DeltaTime)
 {	
-
 	setPlayerLocation();
 	setPlayerRotation();
 	setPlayerVelocity();
+	setShipHealth();
+	setShipEnergy();
 
-	xLocStr = "Player X:" @ locX;
-	yLocStr = "Player Y:" @ locY;
-	zLocStr = "Player Z:" @ locZ;
+	// Update Player Location Data
+	xLocStr = "Player X:" @ locX;       yRotStr = "Player Yaw:" @ rotY;
+	yLocStr = "Player Y:" @ locY;       pRotStr = "Player Pitch:" @ rotP;
+	zLocStr = "Player Z:" @ locZ;       rRotStr = "Player Roll:" @ rotR;
 
-	yRotStr = "Player Yaw:" @ rotY;
-	pRotStr = "Player Pitch:" @ rotP;
-	rRotStr = "Player Roll:" @ rotR;
+	magStr = "Player Mag: " @ mag;
 
-	magStr = "Player Mag:"@ mag;
+	shipHealthStr = "Ship Health: " @ shipHealth;
+	shipEnergyStr = "Ship Energy: " @ shipEnergy;
 
 	SetLocationText(xLocStr,yLocStr,zLocStr);
 	SetRotationText(yRotStr,pRotStr,rRotStr);
 	SetMagnitudeText(magStr);
+	SetShipHealthText(shipHealthStr);
+	SetShipEnergyText(shipEnergyStr);
+	
+	ToggleOnShip(ShipHealth);
 }
-
 
 // Toggles mouse cursor on/off
 function bool ToggleMouseCursor(bool showCursor)
@@ -180,8 +271,6 @@ function bool ToggleMouseCursor(bool showCursor)
 	if (showCursor)
 	{
 		MyMouse.ToggleMouse(true);
-		
-
 	}
 	else
 	{
@@ -195,6 +284,33 @@ function bool ToggleMouseCursor(bool showCursor)
 	return showCursor;
 }
 
+//========================================================================================
+//  ToggleOnShip
+//========================================================================================
+// Determines if player is on ship and displays the appropriate health and energy data.
+// 
+// Abstract: The onboardShip bool is determined by if the player is receiving a ship health
+// value and not by 
+
+function ToggleOnShip(int ShipHealthValue)
+{
+	if((ShipHealthValue > 0) && (onboardShip == false)){
+		GetPC().Pawn.ClientMessage('OnBoard Ship  Altering Reticle');
+		//ReticleMC.GotoAndStopI(20);
+		//ReticlesMC.GotoAndPlay("open");
+		ReticleMC.GotoAndPlay("dim");
+		OnBoardMC.GotoAndPlay("reveal");
+		//ReticleMC.GotoAndStopI(2);
+
+		onboardShip = true;
+	}
+    if((ShipHealthValue <= 0) && (onboardShip == true)){
+		GetPC().Pawn.ClientMessage('Offsite  Altering Reticle');
+		ReticleMC.GotoAndPlay("bright");
+		OnBoardMC.GotoAndPlay("fade");
+		onboardShip = false;
+	}
+}
 // Callback when a CLIK widget with enableInitCallback set to TRUE is initialized.  Returns TRUE if the widget was handled, FALSE if not.
 event bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 {    

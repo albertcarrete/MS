@@ -13,6 +13,13 @@ function TurnOff(){
 	ShipOwner.bCanEnableGravity = false;
 }
 
+function SetFunctional(bool bfunctional){
+	Super.SetFunctional(bfunctional);
+
+	if(bfunctional)
+		ShipOwner.bCanEnableGravity = true;
+}
+
 DefaultProperties
 {
 	DrawScale = 5

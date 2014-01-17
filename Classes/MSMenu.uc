@@ -87,7 +87,7 @@ function handleBtnPress(GFxClikWidget.EventData ev)
 	switch (button.GetString("name"))
 	{
 		case ("start_btn"):
-			ConsoleCommand("open STest2");
+			ConsoleCommand("open MetalStar_TEST.udk");
 			Close(true);
 			break;
 		case ("options_btn"):

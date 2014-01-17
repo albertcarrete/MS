@@ -8,14 +8,10 @@ var LinearColor BladeColor;
 
 var ArmorList theArmorList;
 
-var bool bAiming;
-
 /** used to keep track of melee combos*/
 var int currentmeleeNum;
 
 var AudioComponent BladeAC;
-
-var bool bAllowJump;
 
 var ParticleSystem JetPackParticleSystem;
 var JetPackFlame FlameActor;
@@ -98,14 +94,20 @@ var PointLightComponent MyLight2;
 
 var StaticMeshComponent BeamMesh;
 
+var bool bRepairingShipPart;
+
 simulated function PostBeginPlay(){
 
 	Super.PostBeginPlay();
 	Mesh.AttachComponentToSocket(MyLight, 'Light_Socket');
 	Mesh.AttachComponentToSocket(MyLight2, 'Light_Socket');
 	Mesh.AttachComponentToSocket(BeamMesh, 'Beam_Socket');
-	BeamMesh.SetScale(0.25);
-	BeamMesh.SetHidden(true);
+	
+	if(BeamMesh != none){
+		BeamMesh.SetScale(0.25);
+		BeamMesh.SetHidden(true);
+	}
+
 	SetUpArmor();
 
 	theArmorList = Spawn(class'ArmorList');
@@ -332,7 +334,7 @@ function SetShield(class<Armor> ArmorClass){
 
 }
 
-function SetArmor(class<Armor> ArmorClass, int ArmorActorInt, name socketName){
+simulated function SetArmor(class<Armor> ArmorClass, int ArmorActorInt, name socketName){
 	local Vector tempLocation;
 	local Rotator tempRotation;
 
@@ -542,6 +544,8 @@ function SetArmor(class<Armor> ArmorClass, int ArmorActorInt, name socketName){
 		
 	WorldInfo.ForceGarbageCollection();
 }
+
+
 
 simulated function StartFire(byte FireModeNum){
 	
@@ -759,8 +763,12 @@ function ChangeBuildingActor(ShipPart newBuildingActor){
 
 exec function ChangeAllArmorColor(int ArmorMaterialNumber, float red, float green, float blue, float alpha){
 	local int i;
-	for( i = 0; i < ArmorArray.Length; i++)
+	for( i = 0; i < ArmorArray.Length; i++){
+		if(ArmorArray[i] == none)
+			continue;
+
 		ArmorArray[i].ChangeColor(ArmorMaterialNumber, red , green, blue, alpha);
+	}
 }
 
 function RandomizeColors(){
@@ -1093,8 +1101,9 @@ exec function StartAim()
 {
 	if(Health <= 0)
 		return;
-
-	if(Weapon != none){
+	if(CurrentActiveActor != none && CurrentActiveActor.IsA('DestructibleActiveShipPart')){
+		SetRepairShipPart(true);
+	}else if(Weapon != none){
 		bAiming = true;
 		PlaySlotAnims(TorsoAnimSlot, SWeapon(Weapon).AimAnim, 3, true,,0.2,0.2,true);
 		UTPlayerController(Controller).StartZoom(45,60);
@@ -1103,7 +1112,28 @@ exec function StartAim()
 	}
 }
 
+simulated function SetRepairShipPart(bool bRepair){
+	bRepairingShipPart = bRepair;
+	if(bRepairingShipPart && CurrentActiveActor.IsA('DestructibleActiveShipPart')){
+		PlaySlotAnims(TorsoAnimSlot, 'H_RepairStance', 1, , , 0.25, 0.25, true);
+		SetTimer(1, false, 'RepairShipPart');
+	}else{
+		SetTimer(0, false, 'RepairShipPart');
+		StopPlaySlotAnims(TorsoAnimSlot, 0.2);
+	}
+}
+
+simulated function RepairShipPart(){
+	if(bRepairingShippart && CurrentActiveActor != none && CurrentActiveActor.IsA('DestructibleActiveShipPart')){
+		DestructibleActiveShipPart(CurrentActiveActor).AddHealth(50, self);
+		SetTimer(1, false, 'RepairShipPart');
+	}
+}
+
 exec function StopAim(){
+	
+	bRepairingShipPart = false;
+	
 	bAiming = false;
 	StopPlaySlotAnims(TorsoAnimSlot, 0.2);
 	UTPlayerController(Controller).StartZoom(SController(Controller).DefaultFOV,60);

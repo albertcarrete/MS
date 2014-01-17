@@ -1,6 +1,7 @@
 class ActiveShipPart extends ShipPart placeable;
 
 var int Health;
+var int MaxHealth;
 var int LastHealth;
 var bool bDestroyed;
 
@@ -18,6 +19,28 @@ simulated event PostBeginPlay()
 
 	if(!bDestroyed)
 		ActiveAC.Play();
+}
+
+function AddHealth(int healthAdded, S_Pawn Instigator){
+	if((Health + healthAdded) < MaxHealth)
+		Health+= healthAdded;
+	else
+		Health = MaxHealth;
+
+	if(Health >= (MaxHealth/2) && bDestroyed){
+		SetFunctional(true);
+	}
+
+	Instigator.ClientMessage("Health = " @ Health);
+}
+
+function SetFunctional(bool bfunctional){
+	if(bfunctional){
+		bDestroyed = false;
+		TurnOn();
+	}else{
+		bDestroyed=true;
+	}
 }
 
 event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
@@ -66,14 +89,13 @@ function bool CheckDestroyed()
 {
 	if(Health <= 0)
 		bDestroyed = true;
-	else
-		bDestroyed = false;
 
 	return bDestroyed;
 }
 
 DefaultProperties
 {
+	MaxHealth=1000
 	Health=1000
 	LastHealth=1000
 

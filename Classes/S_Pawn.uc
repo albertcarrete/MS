@@ -136,6 +136,8 @@ replication{
 		theAcceleration;
 }
 
+
+
 simulated function PostBeginPlay(){
 
 	Super.PostBeginPlay();
@@ -478,6 +480,10 @@ exec function AddWeapon(){
 	CreateInventory(class'SWeap_WpA_HandGun');
 }
 
+exec function AddWeapon2(){
+	CreateInventory(class'SWeap_TestRifle');
+}
+
 exec function CreateHelper(){
 	local Pawn tempPawn;
 	local SBot tempBot;
@@ -617,7 +623,7 @@ simulated function Vector GetRandomLocation(int MaxXandYDistance, optional int M
 	return randomLoc;
 }
 
-exec function Ship CreateCockpit(optional Vector SpawnLoc){
+simulated exec function Ship CreateCockpit(optional Vector SpawnLoc){
 	local Rotator ShipRotation;
 	local Vector ShipLocation, X, Y, Z;
 	local Ship tempShipActor;
@@ -640,7 +646,9 @@ exec function Ship CreateCockpit(optional Vector SpawnLoc){
 	ShipRotation.Yaw = 0;
 	ShipRotation.Roll = 0;
     
+
 	tempShipActor = Spawn(class'TestShip', , , ShipLocation, ShipRotation);
+	
 	SetShipActor(tempShipActor);
 	BuildingActor = tempShipActor;
 	BuildingActor.PawnOwner = self;
@@ -649,6 +657,10 @@ exec function Ship CreateCockpit(optional Vector SpawnLoc){
 	SetLocation(tempShipActor.Location + tempShipActor.defaultSpawnPoint);
 
 	return tempShipActor;
+}
+
+reliable server function Actor ServerSpawn(class<Actor> SpawnClass, optional Actor SpawnOwner, optional name SpawnTag, optional Vector SpawnLocation, optional Rotator SpawnRotation, optional Actor ActorTemplate, optional bool bNoCollisionFail){
+	return Spawn(SpawnClass,SpawnOwner,SpawnTag,SpawnLocation,SpawnRotation,ActorTemplate,bNoCollisionFail);
 }
 
 exec function Ship CreateCockpit2(optional Vector SpawnLoc){
@@ -827,19 +839,20 @@ function bool CheckIfInShip(){
 
 		GetAxes(Rotation, X, Y, Z);
 		Orientation = -Z dot GravityDirection;
-		if(Orientation > 0){
+		if(Orientation > 0 && !TracedActor2.ShipOwner.IsA('TestShip2')){
 			//ClientMessage("Oriented to Gravity!");
 			if(GetDistance(HitLoc) < 60 && !bPlayingMelee && !bPressingJump)// && !OldbLanded)
 				if(Physics != PHYS_RigidBody)
 					SetPhysics(PHYS_Walking);
 		}
-		if(Base != ShipActor){
+		if(ShipActor!= none && Base != ShipActor){
 			//ClientMessage("Found New Base!");
-			SetBase(ShipActor);
+			if(!ShipActor.IsA('TestShip2'))
+				SetBase(ShipActor);
 		}
 
 		return true;
-	}else{
+	}else if(ShipActor != none){
 		//ClientMessage("Getting rid of old base!");
 		ShipActor.Detach(self);
 		ShipActor = none;
@@ -857,7 +870,7 @@ function bool CheckIfInShip(){
 }
 
 function SetShipActor(Ship newShipActor){
-	if(ShipActor != newShipActor){
+	if(ShipActor == none || ShipActor != newShipActor){
 		ShipActor = newShipActor;
 	}
 }
@@ -949,7 +962,7 @@ simulated State Dying
 	{
 		local Vector tempVel;
 
-		if(CheckIfInShip() && ShipActor.bGravityOn && ShipActor.bPowerOn){
+		if(CheckIfInShip() && ShipActor != none && ShipActor.bGravityOn && ShipActor.bPowerOn){
 			//Can't use AddVel because I need Gravity Axis
 		
 			`log("RAGDOLL GRAVITY!!!!");
@@ -1057,7 +1070,7 @@ simulated event Tick(float DeltaTime)
 
 	//GravityDirection = vect(0, 0, -1);
 
-	if(CheckIfInShip() && ShipActor.bGravityOn && ShipActor.bPowerOn){
+	if(CheckIfInShip() && ShipActor.bGravityOn && ShipActor.bPowerOn && !ShipActor.IsA('TestShip2')){
 		//Can't use AddVel because I need Gravity Axis
 		
 		tempVel = Velocity;
@@ -1147,7 +1160,11 @@ simulated event Tick(float DeltaTime)
 		tempLoc.Z+=53;
 
 		SetLocation(tempLoc);
+
 	}
+
+	if(ShipActor != none && ShipActor.IsA('TestShip2'))
+		TestShip2(ShipActor).TurnPitch(DeltaTime);
 
 	if(!bExperiencingGravity && !bDrivingShip){
 		if(bPressingRollRight){
@@ -1163,7 +1180,6 @@ simulated event Tick(float DeltaTime)
 
 		//SetRotation(Controller.Rotation);
 	}else{
-		//This code makes sure that when you experience gravity, that your body gets oriented the way it's supposed to
 		tempRot = Controller.Rotation;
 		tempRot.Roll = 0;
 		Controller.SetRotation(tempRot);
@@ -1244,7 +1260,7 @@ simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out
 	vecCamHeight += CamHeight*Z;
 	vecCamHeight += CamYOffset*Y;
 
-	if(ShipActor.bRecentlyTookDamage)
+	if(ShipActor!=none && ShipActor.bRecentlyTookDamage)
 		Start = ShakeCam(Location, 5);
 	else
 		Start = Location;
@@ -1781,6 +1797,7 @@ function TracePlayerInteract(){
 		CurrentActiveActor = none;
 	}
 }
+
 
 exec function StartAim()
 {

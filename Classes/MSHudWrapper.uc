@@ -6,6 +6,7 @@ class MSHudWrapper extends UTHUDBase;
 var MSHud   			HudMovie;
 var Vector2D			HudMovieSize;
 var bool cursorStatus;
+var GFxUI_PauseMenu		PauseMenuMovie;
 
 simulated function PostBeginPlay()
 {
@@ -33,12 +34,63 @@ function CreateHUDMovie()
 	HudMovieSize.X = x1-x0;
 	HudMovieSize.Y = y1-y0;
 }
-
+exec function ShowMenu()
+{
+	// if using GFx HUD, use GFx pause menu
+	TogglePauseMenu();
+}
 exec function ToggleMouseCursor(bool showCursor)
 {
 	cursorStatus = HudMovie.ToggleMouseCursor(showCursor);
 }
 
+function TogglePauseMenu()
+{
+    if ( PauseMenuMovie != none && PauseMenuMovie.bMovieIsOpen )
+	{
+		
+		if( !WorldInfo.IsPlayInMobilePreview() )
+		{
+			PauseMenuMovie.PlayCloseAnimation();
+		}
+		else
+		{
+			// On mobile previewer, close right away
+			CompletePauseMenuClose();
+		}
+	}
+	else
+    {
+		CloseOtherMenus();
+
+        PlayerOwner.SetPause(True);
+
+        if (PauseMenuMovie == None)
+        {
+	        PauseMenuMovie = new class'GFxUI_PauseMenu';
+            PauseMenuMovie.MovieInfo = SwfMovie'MSUI.MSPauseMenu';
+            PauseMenuMovie.bEnableGammaCorrection = FALSE;
+			PauseMenuMovie.LocalPlayerOwnerIndex = class'Engine'.static.GetEngine().GamePlayers.Find(LocalPlayer(PlayerOwner.Player));
+            PauseMenuMovie.SetTimingMode(TM_Real);
+        }
+
+		SetVisible(false);
+        PauseMenuMovie.Start();
+        PauseMenuMovie.PlayOpenAnimation();
+
+		// Do not prevent 'escape' to unpause if running in mobile previewer
+		if( !WorldInfo.IsPlayInMobilePreview() )
+		{
+			PauseMenuMovie.AddFocusIgnoreKey('Escape');
+		}
+    }
+}
+function CompletePauseMenuClose()
+{
+    PlayerOwner.SetPause(False);
+    PauseMenuMovie.Close(false);  // Keep the Pause Menu loaded in memory for reuse.
+    SetVisible(true);
+}
 /* 
 * Events 
 */

@@ -136,10 +136,13 @@ function AddDefaultInventory( pawn PlayerPawn )
 
 DefaultProperties
 {
+	bWaitForNetPlayers = false
+	bWaitingToStartMatch = false
+
 	DefaultPawnClass=class'SPlayer_Pawn'//class'SPlayerWithShip_Pawn'
 	PlayerControllerClass=class'SController'
-	//HUDType=class'ProjectS.MSHudWrapper'	
-	HUDType=class'SHud'
+	HUDType=class'ProjectS.MSHudWrapper'	
+	//HUDType=class'SHud'
 	MapPrefixes[0]="S"
 	bUseClassicHUD=true
 	Name = "Default__SGameInfo"

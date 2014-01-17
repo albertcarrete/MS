@@ -2,7 +2,7 @@ class SKActorSpawnable extends KActorSpawnable;
 
 var StaticMeshComponent theMesh;
 
-event PostBeginPlay(){
+simulated event PostBeginPlay(){
 	SetPhysics(PHYS_falling);
 	SetPhysics(PHYS_rigidbody);
 }

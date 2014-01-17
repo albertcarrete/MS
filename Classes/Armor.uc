@@ -31,11 +31,14 @@ function ChangeColor(int MatNum, float red, float green, float blue, float alpha
 
 	for(i = 0; i < 5; i++){
 	
+		if(ArmorMesh.GetMaterial(i) == none)
+			continue;
+
 		ArmorInst = new(none) class'MaterialInstanceConstant';
 
 		ArmorInst.SetParent(ArmorMesh.GetMaterial(i).GetMaterial());
 	
-		if(ArmorInst.Parent.Name == matName){
+		if(ArmorInst.Parent != none && ArmorInst.Parent.Name == matName){
 			ArmorMesh.SetMaterial(i, ArmorInst);
 			ArmorInst.SetVectorParameterValue('Color',theColor);
 		}
@@ -44,6 +47,8 @@ function ChangeColor(int MatNum, float red, float green, float blue, float alpha
 
 DefaultProperties
 {
+	bAlwaysRelevant=true
+
 	bShadowParented = true
 
 	bHardAttach=true

@@ -29,7 +29,7 @@ var float DistanceToStopForShooting;
 
 var bool bStartedFiring;
 
-event PostBeginPlay(){
+simulated event PostBeginPlay(){
 	Super.PostBeginPlay();
 	SPlayer_Pawn(Pawn).bIsBot = true;
 }
@@ -65,13 +65,13 @@ event PlayerTick( float DeltaTime ){
 					S_Pawn(Pawn).ShipActor.ShipMoving(3000 + 1000 * (S_Pawn(Pawn).ShipActor.Energy/S_Pawn(Pawn).ShipActor.MaxEnergy) * DeltaTime);
 				}
 
-				if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) < 10000 && ShipTarget.bIsEnemy != bIsEnemy){
+				/*if(GetDistance(S_Pawn(Pawn).ShipActor.Location, ShipTarget.Location) < 10000 && ShipTarget.bIsEnemy != bIsEnemy){
 					if(!bStartedFiring){
 						bStartedFiring = true;
 						SetTimer(0.3, false, 'FireWeapon');
 					}
 				}else
-					S_Pawn(Pawn).StopFire(0);
+					S_Pawn(Pawn).StopFire(0);*/
 			}else{
 				S_Pawn(Pawn).StopFire(0);
 			}

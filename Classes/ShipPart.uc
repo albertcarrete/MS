@@ -63,7 +63,8 @@ event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocatio
 
 DefaultProperties
 {
-	
+	bAlwaysRelevant=true
+
 	bIsWeapon = false
 	PartOwner = none
 

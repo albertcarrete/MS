@@ -360,6 +360,9 @@ function RealDestroy(){
 
 DefaultProperties
 {
+	bCollideActors =false
+	bBlockActors=false
+
 	TimerTime = 20
 
 	ExplosionParticleSystem = ParticleSystem'PXParticleSystems.Effects.P_FX_ShipExplosion'
